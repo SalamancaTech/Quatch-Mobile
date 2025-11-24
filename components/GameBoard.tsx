@@ -128,13 +128,18 @@ const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaCl
       {/* The row containing board elements aligned to match PlayerArea grid */}
       <div className="flex justify-center items-end w-full">
 
-         {/* Column 1: Bin (Aligns with Hand) */}
-         <div className="relative w-20 h-28 md:w-24 md:h-36 mr-4 md:mr-8 flex-shrink-0 flex items-center justify-center">
-             {BinPile}
+         {/* Left Column: Ghost (Matches Opponent Hand position) */}
+         <div className="relative w-20 h-28 md:w-24 md:h-36 mr-4 md:mr-8 flex-shrink-0 flex items-center justify-center opacity-0 pointer-events-none">
+             {/* Empty ghost slot to maintain grid alignment */}
          </div>
 
-         {/* Right Group: MPA & Deck (Aligns with LC cards) */}
+         {/* Right Group: Bin, MPA, Deck (Aligns with Slots 0, 1, 2) */}
          <div className="flex space-x-2 md:space-x-4">
+              {/* Slot 0: Bin */}
+              <div className="relative w-20 h-28 md:w-24 md:h-36 flex items-center justify-center">
+                  {BinPile}
+              </div>
+
               {/* Slot 1: MPA */}
               <div className="relative w-20 h-28 md:w-24 md:h-36 flex items-center justify-center">
                   {MpaPile}
@@ -144,9 +149,6 @@ const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaCl
               <div className="relative w-20 h-28 md:w-24 md:h-36 flex items-center justify-center">
                   {DeckPile}
               </div>
-
-              {/* Slot 3: Empty (LC3) */}
-              <div className="relative w-20 h-28 md:w-24 md:h-36 pointer-events-none"></div>
           </div>
       </div>
     </div>
