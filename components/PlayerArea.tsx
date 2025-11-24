@@ -198,7 +198,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
     <div className={`flex flex-col items-center transition-all duration-300 rounded-lg ${containerClasses}`}>
       
       {/* LS and LC cards */}
-      <div ref={cardTableRef} className="relative flex flex-col items-center mt-3 -space-y-[92px] md:-space-y-[124px]">
+      <div ref={cardTableRef} className="relative flex flex-col items-center mt-3 -space-y-[92px] md:-space-y-[124px] mb-[7px]">
         {/* Last Stand cards (behind) */}
         <div ref={lastStandRef} className="relative flex justify-center space-x-4">
           {lsCards}
