@@ -11,6 +11,7 @@ import DifficultyModal from './components/DifficultyModal';
 import GameRulesModal from './components/GameRulesModal';
 import EditNamesModal from './components/EditNamesModal';
 import StatisticsModal from './components/StatisticsModal';
+import { LAYOUT_CONSTANTS } from './constants';
 
 type AnimationState = {
   cards: CardType[];
@@ -52,12 +53,12 @@ type SpecialMessage = {
   type: 'event' | 'prompt';
 } | null;
 
-const getPreciseSlotRect = (centeringRect: DOMRect, targetRect: DOMRect, cardIndex: number, cardWidth: number, spacing: number): DOMRect => {
-    const totalCardsWidth = 3 * cardWidth + 2 * spacing;
-    const firstCardX = centeringRect.left + (centeringRect.width - totalCardsWidth) / 2;
-    const cardX = firstCardX + cardIndex * (cardWidth + spacing);
-    
-    return new DOMRect(cardX, targetRect.top, cardWidth, targetRect.height);
+const getPreciseSlotRect = (slotId: string): DOMRect | null => {
+    const element = document.getElementById(slotId);
+    if (element) {
+        return element.getBoundingClientRect();
+    }
+    return null;
 };
 
 const getHandCardFanRect = (handContainerRect: DOMRect, cardIndex: number, totalCards: number, cardWidth: number, cardHeight: number): DOMRect => {
@@ -722,9 +723,18 @@ const App: React.FC = () => {
         nextStep = 2;
         
         for (let i = 0; i < 3; i++) {
-            animations.push({ card: cardsToDeal.p[i], startRect, endRect: getPreciseSlotRect(playerCardTableRect, playerLSRect, i, cardWidth, spacing), delay, isFaceUp: false, id: `deal-${cardsToDeal.p[i].id}` });
+            // Player LS
+            const pRect = getPreciseSlotRect(`player-ls-slot-${i}`) || playerLastStandRef.current?.getBoundingClientRect();
+            if (pRect) {
+                animations.push({ card: cardsToDeal.p[i], startRect, endRect: pRect, delay, isFaceUp: false, id: `deal-${cardsToDeal.p[i].id}` });
+            }
             delay += delayIncrement;
-            animations.push({ card: cardsToDeal.o[i], startRect, endRect: getPreciseSlotRect(opponentCardTableRect, opponentLSRect, i, cardWidth, 8), delay, isFaceUp: false, id: `deal-${cardsToDeal.o[i].id}` });
+
+            // Opponent LS
+            const oRect = getPreciseSlotRect(`opponent-ls-slot-${i}`) || opponentLastStandRef.current?.getBoundingClientRect();
+             if (oRect) {
+                animations.push({ card: cardsToDeal.o[i], startRect, endRect: oRect, delay, isFaceUp: false, id: `deal-${cardsToDeal.o[i].id}` });
+            }
             delay += delayIncrement;
         }
         
@@ -741,9 +751,18 @@ const App: React.FC = () => {
         nextStep = 3;
 
         for (let i = 0; i < 3; i++) {
-            animations.push({ card: cardsToDeal.p[i], startRect, endRect: getPreciseSlotRect(playerCardTableRect, playerLCRect, i, cardWidth, spacing), delay, isFaceUp: true, id: `deal-${cardsToDeal.p[i].id}` });
+            // Player LC
+            const pRect = getPreciseSlotRect(`player-lc-slot-${i}`) || playerLastChanceRef.current?.getBoundingClientRect();
+            if (pRect) {
+                 animations.push({ card: cardsToDeal.p[i], startRect, endRect: pRect, delay, isFaceUp: true, id: `deal-${cardsToDeal.p[i].id}` });
+            }
             delay += delayIncrement;
-            animations.push({ card: cardsToDeal.o[i], startRect, endRect: getPreciseSlotRect(opponentCardTableRect, opponentLCRect, i, cardWidth, 8), delay, isFaceUp: true, id: `deal-${cardsToDeal.o[i].id}` });
+
+            // Opponent LC
+            const oRect = getPreciseSlotRect(`opponent-lc-slot-${i}`) || opponentLastChanceRef.current?.getBoundingClientRect();
+            if (oRect) {
+                animations.push({ card: cardsToDeal.o[i], startRect, endRect: oRect, delay, isFaceUp: true, id: `deal-${cardsToDeal.o[i].id}` });
+            }
             delay += delayIncrement;
         }
         
@@ -759,10 +778,13 @@ const App: React.FC = () => {
         remainingDeck = currentDeck.slice(6);
         nextStep = 4;
 
+        // Use container rect for opponent hand
+        const opponentHandContainerRect = document.getElementById('opponent-hand-container')?.getBoundingClientRect() || opponentHandRect;
+
         for (let i = 0; i < 3; i++) {
             animations.push({ card: cardsToDeal.p[i], startRect, endRect: getHandCardFanRect(playerHandRect, i, 3, cardWidth, cardHeight), delay, isFaceUp: true, id: `deal-${cardsToDeal.p[i].id}` });
             delay += delayIncrement;
-            animations.push({ card: cardsToDeal.o[i], startRect, endRect: opponentHandRect, delay, isFaceUp: false, id: `deal-${cardsToDeal.o[i].id}` });
+            animations.push({ card: cardsToDeal.o[i], startRect, endRect: opponentHandContainerRect, delay, isFaceUp: false, id: `deal-${cardsToDeal.o[i].id}` });
             delay += delayIncrement;
         }
         
@@ -992,237 +1014,253 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="game-board-bg min-h-screen flex flex-col overflow-hidden relative p-2">
-      <div 
-        className="absolute top-2 left-1/2 -translate-x-1/2 text-white text-sm font-light opacity-25 pointer-events-none select-none"
-      >
-        created by SalamancaTech
-      </div>
+    <div className="game-board-bg min-h-screen flex flex-col overflow-hidden relative">
       
-      {/* Pop-up Messages Layer */}
-      {specialMessage && (
+      {/* Sticky Opponent Name Bar */}
+      <div className="fixed top-0 left-0 right-0 h-10 bg-yellow-400 shadow-md flex items-center justify-center z-50">
+          <span className="text-gray-900 font-bold text-xl uppercase tracking-wider">{aiPlayer.name}</span>
+      </div>
+
+      <div className="flex-grow flex flex-col justify-center items-center py-12 px-2">
         <div 
-            className="fixed inset-0 flex items-start justify-center pointer-events-none z-[200] pt-44 text-center px-4"
-            onAnimationEnd={() => {
-                if (specialMessage.type === 'event') {
-                    setSpecialMessage(null);
-                }
-            }}
+            className="absolute top-12 left-1/2 -translate-x-1/2 text-white text-sm font-light opacity-25 pointer-events-none select-none"
         >
-            {specialMessage.type === 'prompt' ? (
-                <div className="text-4xl md:text-5xl font-bold text-yellow-300 animate-prompt-fade-in" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
-                    {specialMessage.text}
-                </div>
-            ) : renderSpecialEventMessage()}
+            created by SalamancaTech
         </div>
-      )}
 
-      {/* Menu & Animation Layer */}
-      <div className="absolute top-4 right-4 z-50">
-        <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 rounded-full bg-black/30 hover:bg-black/50 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-        </button>
-        {isMenuOpen && (
-          <div className="absolute top-12 right-0 bg-gray-800 rounded-lg shadow-xl py-2 w-56">
-              <button onClick={handleResetGame} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">New Game</button>
-              <button onClick={() => { setIsDifficultyModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Change Difficulty</button>
-              <button onClick={() => { setIsEditNamesModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Edit Names</button>
-              <button onClick={() => { setIsRulesModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Game Rules</button>
-              <button onClick={() => { setIsStatisticsModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Statistics</button>
-              <div className="border-t border-gray-700 my-2"></div>
-              <div className="px-4 py-2 flex justify-between items-center text-white">
-                <span>Cheatin'!</span>
-                <button 
-                  onClick={() => setIsCheatingEnabled(!isCheatingEnabled)} 
-                  className={`w-12 h-6 rounded-full flex items-center transition-colors ${isCheatingEnabled ? 'bg-yellow-500' : 'bg-gray-600'}`}
-                >
-                  <span className={`block w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${isCheatingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
-              </div>
-          </div>
+        {/* Pop-up Messages Layer */}
+        {specialMessage && (
+            <div
+                className="fixed inset-0 flex items-start justify-center pointer-events-none z-[200] pt-44 text-center px-4"
+                onAnimationEnd={() => {
+                    if (specialMessage.type === 'event') {
+                        setSpecialMessage(null);
+                    }
+                }}
+            >
+                {specialMessage.type === 'prompt' ? (
+                    <div className="text-4xl md:text-5xl font-bold text-yellow-300 animate-prompt-fade-in" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                        {specialMessage.text}
+                    </div>
+                ) : renderSpecialEventMessage()}
+            </div>
         )}
-      </div>
 
-      {isDifficultyModalOpen && (
-        <DifficultyModal 
-          currentDifficulty={difficulty}
-          onSelect={handleSetDifficulty}
-          onClose={() => setIsDifficultyModalOpen(false)}
-        />
-      )}
+        {/* Menu & Animation Layer */}
+        <div className="absolute top-12 right-4 z-50">
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 rounded-full bg-black/30 hover:bg-black/50 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+            {isMenuOpen && (
+            <div className="absolute top-12 right-0 bg-gray-800 rounded-lg shadow-xl py-2 w-56">
+                <button onClick={handleResetGame} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">New Game</button>
+                <button onClick={() => { setIsDifficultyModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Change Difficulty</button>
+                <button onClick={() => { setIsEditNamesModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Edit Names</button>
+                <button onClick={() => { setIsRulesModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Game Rules</button>
+                <button onClick={() => { setIsStatisticsModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Statistics</button>
+                <div className="border-t border-gray-700 my-2"></div>
+                <div className="px-4 py-2 flex justify-between items-center text-white">
+                    <span>Cheatin'!</span>
+                    <button
+                    onClick={() => setIsCheatingEnabled(!isCheatingEnabled)}
+                    className={`w-12 h-6 rounded-full flex items-center transition-colors ${isCheatingEnabled ? 'bg-yellow-500' : 'bg-gray-600'}`}
+                    >
+                    <span className={`block w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${isCheatingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                </div>
+            </div>
+            )}
+        </div>
 
-      {isRulesModalOpen && (
-        <GameRulesModal onClose={() => setIsRulesModalOpen(false)} />
-      )}
+        {isDifficultyModalOpen && (
+            <DifficultyModal
+            currentDifficulty={difficulty}
+            onSelect={handleSetDifficulty}
+            onClose={() => setIsDifficultyModalOpen(false)}
+            />
+        )}
 
-      {isEditNamesModalOpen && (
-        <EditNamesModal
-          currentNames={{ player1: humanPlayer.name, opponent: aiPlayer.name }}
-          onSave={handleSaveNames}
-          onClose={() => setIsEditNamesModalOpen(false)}
-        />
-      )}
+        {isRulesModalOpen && (
+            <GameRulesModal onClose={() => setIsRulesModalOpen(false)} />
+        )}
 
-      {isStatisticsModalOpen && gameState && (
-        <StatisticsModal
-            gameState={gameState}
-            humanPlayer={humanPlayer}
-            aiPlayer={aiPlayer}
-            difficulty={difficulty}
-            onClose={() => setIsStatisticsModalOpen(false)}
-        />
-      )}
+        {isEditNamesModalOpen && (
+            <EditNamesModal
+            currentNames={{ player1: humanPlayer.name, opponent: aiPlayer.name }}
+            onSave={handleSaveNames}
+            onClose={() => setIsEditNamesModalOpen(false)}
+            />
+        )}
 
-      {specialEffect && (
-        <SpecialEffect
-          type={specialEffect.type}
-          rect={specialEffect.rect}
-          onComplete={() => setSpecialEffect(null)}
-        />
-      )}
+        {isStatisticsModalOpen && gameState && (
+            <StatisticsModal
+                gameState={gameState}
+                humanPlayer={humanPlayer}
+                aiPlayer={aiPlayer}
+                difficulty={difficulty}
+                onClose={() => setIsStatisticsModalOpen(false)}
+            />
+        )}
 
-      {isBinViewOpen && (
-        <BinViewModal cards={gameState.bin} onClose={() => setIsBinViewOpen(false)} difficulty={difficulty}/>
-      )}
+        {specialEffect && (
+            <SpecialEffect
+            type={specialEffect.type}
+            rect={specialEffect.rect}
+            onComplete={() => setSpecialEffect(null)}
+            />
+        )}
 
-      {dealAnimationState && dealAnimationState.map((anim, index) => (
-        <AnimatedCard
-            key={anim.id}
-            card={anim.card}
-            startRect={anim.startRect}
-            endRect={anim.endRect}
+        {isBinViewOpen && (
+            <BinViewModal cards={gameState.bin} onClose={() => setIsBinViewOpen(false)} difficulty={difficulty}/>
+        )}
+
+        {dealAnimationState && dealAnimationState.map((anim, index) => (
+            <AnimatedCard
+                key={anim.id}
+                card={anim.card}
+                startRect={anim.startRect}
+                endRect={anim.endRect}
+                animationType="play"
+                delay={anim.delay}
+                zIndex={index}
+                isFaceUp={anim.isFaceUp}
+                onAnimationEnd={() => {}}
+                difficulty={difficulty}
+            />
+        ))}
+        {refillAnimationState && refillAnimationState.items.map((anim, index) => (
+            <AnimatedCard
+                key={anim.id}
+                card={anim.card}
+                startRect={anim.startRect}
+                endRect={anim.endRect}
+                animationType="play"
+                delay={anim.delay}
+                zIndex={index + 20}
+                isFaceUp={anim.isFaceUp}
+                onAnimationEnd={() => {
+                    if (index === refillAnimationState.items.length - 1) {
+                        completeRefill();
+                    }
+                }}
+                difficulty={difficulty}
+            />
+        ))}
+        {animationState && animationState.cards.map((card, index) => (
+            <AnimatedCard
+            key={card.id}
+            card={card}
+            startRect={animationState.startRect}
+            endRect={animationState.endRect}
             animationType="play"
-            delay={anim.delay}
+            delay={index * 50}
             zIndex={index}
-            isFaceUp={anim.isFaceUp}
-            onAnimationEnd={() => {}}
-            difficulty={difficulty}
-        />
-      ))}
-      {refillAnimationState && refillAnimationState.items.map((anim, index) => (
-        <AnimatedCard
-            key={anim.id}
-            card={anim.card}
-            startRect={anim.startRect}
-            endRect={anim.endRect}
-            animationType="play"
-            delay={anim.delay}
-            zIndex={index + 20}
-            isFaceUp={anim.isFaceUp}
             onAnimationEnd={() => {
-                if (index === refillAnimationState.items.length - 1) {
-                    completeRefill();
+                if (index === animationState.cards.length - 1) {
+                handlePlayComplete(animationState.cards, animationState.playerWhoPlayed);
+                setAnimationState(null);
+                setHiddenCardIds(new Set());
                 }
             }}
             difficulty={difficulty}
-        />
-      ))}
-      {animationState && animationState.cards.map((card, index) => (
-        <AnimatedCard
-          key={card.id}
-          card={card}
-          startRect={animationState.startRect}
-          endRect={animationState.endRect}
-          animationType="play"
-          delay={index * 50}
-          zIndex={index}
-          onAnimationEnd={() => {
-            if (index === animationState.cards.length - 1) {
-              handlePlayComplete(animationState.cards, animationState.playerWhoPlayed);
-              setAnimationState(null);
-              setHiddenCardIds(new Set());
-            }
-          }}
-          difficulty={difficulty}
-        />
-      ))}
-      {eatAnimationState && eatAnimationState.map((item, index) => {
-          const destination = gameState.players[gameState.currentPlayerId].isAI ? opponentHandRef.current : playerHandRef.current;
-          return (
-            <AnimatedCard
-              key={item.id}
-              card={item.card}
-              startRect={item.startRect}
-              endRect={destination!.getBoundingClientRect()}
-              animationType="eat"
-              delay={index * 50}
-              zIndex={index}
-              isFaceUp={true} // Reveal eaten cards
-              onAnimationEnd={() => {
-                if (index === eatAnimationState.length - 1) {
-                  completeEat(eatenCardsForCompletion!);
-                }
-              }}
-              difficulty={difficulty}
             />
-          );
-      })}
+        ))}
+        {eatAnimationState && eatAnimationState.map((item, index) => {
+            const destination = gameState.players[gameState.currentPlayerId].isAI ? opponentHandRef.current : playerHandRef.current;
+            return (
+                <AnimatedCard
+                key={item.id}
+                card={item.card}
+                startRect={item.startRect}
+                endRect={destination!.getBoundingClientRect()}
+                animationType="eat"
+                delay={index * 50}
+                zIndex={index}
+                isFaceUp={true} // Reveal eaten cards
+                onAnimationEnd={() => {
+                    if (index === eatAnimationState.length - 1) {
+                    completeEat(eatenCardsForCompletion!);
+                    }
+                }}
+                difficulty={difficulty}
+                />
+            );
+        })}
 
-      {/* Opponent's Area */}
-      <PlayerArea
-        player={aiPlayer}
-        isCurrentPlayer={gameState.currentPlayerId === aiPlayer.id}
-        selectedCards={[]}
-        onCardSelect={() => {}}
-        isPlayer={false}
-        currentStage={gameState.stage}
-        hiddenCardIds={hiddenCardIds}
-        playerHandRef={opponentHandRef}
-        lastStandRef={opponentLastStandRef}
-        lastChanceRef={opponentLastChanceRef}
-        cardTableRef={opponentCardTableRef}
-        difficulty={difficulty}
-      />
+        {/* --- Main Game Grid --- */}
+        <div className="flex flex-col items-center gap-4 w-full max-w-4xl">
+            {/* Opponent's Area */}
+            <PlayerArea
+                player={aiPlayer}
+                isCurrentPlayer={gameState.currentPlayerId === aiPlayer.id}
+                selectedCards={[]}
+                onCardSelect={() => {}}
+                isPlayer={false}
+                currentStage={gameState.stage}
+                hiddenCardIds={hiddenCardIds}
+                playerHandRef={opponentHandRef}
+                lastStandRef={opponentLastStandRef}
+                lastChanceRef={opponentLastChanceRef}
+                cardTableRef={opponentCardTableRef}
+                difficulty={difficulty}
+            />
 
-      {/* Game Board Wrapper */}
-      <div className="flex-grow flex flex-col items-center justify-center pb-40">
-          {gameState.stage === GameStage.SWAP && (
-            <button 
-              onClick={handleStartGame} 
-              className="mb-4 px-8 py-3 bg-yellow-500 text-gray-900 font-bold rounded-lg shadow-lg hover:bg-yellow-400 transition-colors z-20 transform hover:scale-105"
-            >
-              Start Game
-            </button>
-          )}
-          <GameBoard
-            deckCount={gameState.deck.length}
-            mpa={gameState.mpa}
-            binCount={gameState.bin.length}
-            onMpaClick={handleMpaClick}
-            isPlayerTurn={gameState.isPlayerTurn}
-            hasSelectedCards={selectedCards.length > 0}
-            isInvalidPlay={isInvalidPlay}
-            stage={gameState.stage}
-            onDeckClick={handleDeckClick}
-            mpaRef={mpaRef}
-            deckRef={deckRef}
-            isEating={!!eatAnimationState && eatAnimationState.length > 0}
-            dealingStep={dealingStep}
-            isCheatingEnabled={isCheatingEnabled}
-            onBinClick={() => setIsBinViewOpen(true)}
-            difficulty={difficulty}
-            comboCount={comboCount}
-          />
+            {/* Game Board Wrapper */}
+            <div className="flex-grow flex flex-col items-center justify-center">
+                {gameState.stage === GameStage.SWAP && (
+                    <button
+                    onClick={handleStartGame}
+                    className="mb-4 px-8 py-3 bg-yellow-500 text-gray-900 font-bold rounded-lg shadow-lg hover:bg-yellow-400 transition-colors z-20 transform hover:scale-105"
+                    >
+                    Start Game
+                    </button>
+                )}
+                <GameBoard
+                    deckCount={gameState.deck.length}
+                    mpa={gameState.mpa}
+                    binCount={gameState.bin.length}
+                    onMpaClick={handleMpaClick}
+                    isPlayerTurn={gameState.isPlayerTurn}
+                    hasSelectedCards={selectedCards.length > 0}
+                    isInvalidPlay={isInvalidPlay}
+                    stage={gameState.stage}
+                    onDeckClick={handleDeckClick}
+                    mpaRef={mpaRef}
+                    deckRef={deckRef}
+                    isEating={!!eatAnimationState && eatAnimationState.length > 0}
+                    dealingStep={dealingStep}
+                    isCheatingEnabled={isCheatingEnabled}
+                    onBinClick={() => setIsBinViewOpen(true)}
+                    difficulty={difficulty}
+                    comboCount={comboCount}
+                />
+            </div>
+
+            {/* Player's Controls & Area */}
+            <div className="relative w-full">
+                <PlayerArea
+                player={humanPlayer}
+                isCurrentPlayer={gameState.currentPlayerId === humanPlayer.id}
+                selectedCards={selectedCards}
+                onCardSelect={handleCardSelect}
+                onLastStandCardSelect={handleLastStandCardSelect}
+                isPlayer={true}
+                currentStage={gameState.stage}
+                hiddenCardIds={hiddenCardIds}
+                playerHandRef={playerHandRef}
+                lastStandRef={playerLastStandRef}
+                lastChanceRef={playerLastChanceRef}
+                cardTableRef={playerCardTableRef}
+                isInitialPlay={isInitialPlay}
+                difficulty={difficulty}
+                />
+            </div>
+        </div>
       </div>
-      
-      {/* Player's Controls & Area */}
-      <div className="relative">
-        <PlayerArea
-          player={humanPlayer}
-          isCurrentPlayer={gameState.currentPlayerId === humanPlayer.id}
-          selectedCards={selectedCards}
-          onCardSelect={handleCardSelect}
-          onLastStandCardSelect={handleLastStandCardSelect}
-          isPlayer={true}
-          currentStage={gameState.stage}
-          hiddenCardIds={hiddenCardIds}
-          playerHandRef={playerHandRef}
-          lastStandRef={playerLastStandRef}
-          lastChanceRef={playerLastChanceRef}
-          cardTableRef={playerCardTableRef}
-          isInitialPlay={isInitialPlay}
-          difficulty={difficulty}
-        />
+
+      {/* Sticky Player Name Bar */}
+      <div className="fixed bottom-0 left-0 right-0 h-10 bg-yellow-400 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] flex items-center justify-center z-50">
+          <span className="text-gray-900 font-bold text-xl uppercase tracking-wider">{humanPlayer.name}</span>
       </div>
 
       {gameState.stage === GameStage.GAME_OVER && gameState.winner && (
