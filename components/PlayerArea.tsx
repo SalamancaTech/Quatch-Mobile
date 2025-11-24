@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Player, Card as CardType, GameStage, Suit, Rank, Difficulty } from '../types';
 import Card from './Card';
+import { LAYOUT_CONSTANTS } from '../constants';
 
 interface PlayerAreaProps {
   player: Player;
@@ -24,21 +25,20 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
   const [handLayout, setHandLayout] = useState({
     cardSpacing: 0,
     totalWidth: 0,
-    needsScrolling: false,
+    overlap: 0,
   });
-  const [scrollOffset, setScrollOffset] = useState(0);
 
-  // This effect calculates how hand cards should be spaced and if scrolling is needed
+  // This effect calculates how hand cards should be spaced
   useEffect(() => {
     const calculateLayout = () => {
       if (!isPlayer || !handContainerRef.current || player.hand.length <= 0) {
         return;
       }
       
-      const MIN_CARD_SPACING = 36; // Ensures rank is visible
       const container = handContainerRef.current;
       const containerWidth = container.offsetWidth;
-      const cardWidth = window.innerWidth >= 768 ? 96 : 80;
+      // Fixed constants now
+      const cardWidth = window.innerWidth >= 768 ? LAYOUT_CONSTANTS.CARD_WIDTH_MD : LAYOUT_CONSTANTS.CARD_WIDTH_SM;
       const numCards = player.hand.length;
       
       const totalCardsWidthNoOverlap = numCards * cardWidth;
@@ -49,30 +49,19 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
         setHandLayout({
             cardSpacing: spacing,
             totalWidth: numCards > 0 ? (numCards -1) * spacing + cardWidth : 0,
-            needsScrolling: false,
+            overlap: 0,
         });
-        setScrollOffset(0);
       } else {
-        // Overlap is needed
+        // Overlap is needed to fit within container (Black Box concept)
+        // Formula: (n-1)*spacing + width = containerWidth
+        // spacing = (containerWidth - width) / (n - 1)
         let spacing = (containerWidth - cardWidth) / (numCards - 1);
 
-        if (spacing < MIN_CARD_SPACING) {
-          // Not enough space even when fully consolidated, enable scrolling
-          const totalSpacedWidth = (numCards - 1) * MIN_CARD_SPACING + cardWidth;
-          setHandLayout({
-            cardSpacing: MIN_CARD_SPACING,
-            totalWidth: totalSpacedWidth,
-            needsScrolling: true,
-          });
-        } else {
-          // Just enough space, consolidate to fit edge-to-edge
-          setHandLayout({
-            cardSpacing: spacing,
-            totalWidth: containerWidth,
-            needsScrolling: false,
-          });
-          setScrollOffset(0);
-        }
+        setHandLayout({
+          cardSpacing: spacing,
+          totalWidth: containerWidth,
+          overlap: 0, // Handled by spacing logic in render
+        });
       }
     };
 
@@ -84,160 +73,153 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
     };
   }, [isPlayer, player.hand.length]);
   
-  const scrollHand = (direction: 'left' | 'right') => {
-    const containerWidth = handContainerRef.current?.offsetWidth || 0;
-    const scrollAmount = containerWidth * 0.75;
-    const maxScroll = Math.max(0, handLayout.totalWidth - containerWidth);
-    
-    setScrollOffset(prev => {
-        const newOffset = direction === 'left' ? prev - scrollAmount : prev + scrollAmount;
-        return Math.max(0, Math.min(newOffset, maxScroll));
-    });
-  };
+  const typePrefix = isPlayer ? 'player' : 'opponent';
 
-  const maxScrollOffset = handContainerRef.current ? Math.max(0, handLayout.totalWidth - handContainerRef.current.offsetWidth) : 0;
-
-  // Opponent's consolidated view
+  // Opponent's Consolidated View
   if (!isPlayer) {
     const handCardCount = player.hand.length;
-    
-    const lcCards = player.lastChance.map((card) => (
-        <Card
-            key={card.id}
-            card={card}
-            isFaceUp={true}
-            className="w-16 h-24 md:w-20 md:h-28"
-            difficulty={difficulty}
-        />
-    ));
-    
-    const lsCards = player.lastStand.map((card, index) => (
-        <Card
-            key={`${card.id}-${index}`}
-            card={card}
-            isFaceUp={false}
-            className="w-16 h-24 md:w-20 md:h-28"
-            difficulty={difficulty}
-        />
+    // Cap visual cards at 3 for opponent
+    const handVisualCount = Math.min(handCardCount, 3);
+    const handCards = Array.from({ length: handVisualCount }).map((_, i) => (
+        <div
+            key={`op-hand-${i}`}
+            className="absolute"
+            style={{
+                left: `${i * 12}px`,
+                zIndex: i
+            }}
+        >
+             <Card
+                card={{ suit: Suit.Spades, rank: Rank.Two, value: 0, id: `opponent-hand-pile-${i}` }}
+                isFaceUp={false}
+                className="shadow-md"
+                difficulty={difficulty}
+            />
+        </div>
     ));
 
     return (
-        <div className="relative flex justify-center items-center h-40">
-            <div className="flex items-end space-x-8">
-                {/* Hand Pile */}
-                <div ref={playerHandRef} className="flex flex-col items-center w-24 md:w-28">
-                    <div className="relative w-16 h-24 md:w-20 md:h-28">
-                        {handCardCount > 0 && 
-                            <Card 
-                                card={{ suit: Suit.Spades, rank: Rank.Two, value: 0, id: 'opponent-hand-pile' }} 
-                                isFaceUp={false} 
-                                className="opacity-80" 
-                                difficulty={difficulty}
-                            />
-                        }
-                    </div>
-                    <span className="mt-2 text-sm font-bold text-white">{handCardCount > 0 ? `${handCardCount} in hand` : ''}</span>
+        <div className="flex justify-center items-end w-full max-w-4xl px-4 md:px-8">
+            {/* Left Column: Opponent Hand */}
+            <div ref={playerHandRef} id={`${typePrefix}-hand-container`} className="relative w-20 h-28 md:w-24 md:h-36 mr-4 md:mr-8 flex-shrink-0">
+                <div className="relative w-full h-full">
+                    {handCardCount > 0 && handCards}
+                    {handCardCount > 0 && (
+                        <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
+                            {handCardCount}
+                        </div>
+                    )}
                 </div>
+            </div>
 
-                {/* LC and LS Cards */}
-                <div ref={cardTableRef} className="relative flex justify-center items-center">
-                    {/* Last Stand cards (behind) */}
-                    <div ref={lastStandRef} className="absolute flex justify-center space-x-2">
-                      {lsCards}
+            {/* Right Group: Table Cards (LC + LS) */}
+            <div ref={cardTableRef} className="flex space-x-2 md:space-x-4">
+                 {/* 3 Columns corresponding to LC slots */}
+                 {[0, 1, 2].map(i => (
+                    <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
+                        {/* Last Stand (Bottom/Behind) */}
+                        <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-1 left-1 md:top-2 md:left-2 z-0">
+                             {player.lastStand[i] && (
+                                <Card
+                                    card={player.lastStand[i]}
+                                    isFaceUp={false}
+                                    difficulty={difficulty}
+                                />
+                             )}
+                        </div>
+                         {/* Last Chance (Top/Front) */}
+                        <div ref={lastChanceRef} id={`${typePrefix}-lc-slot-${i}`} className="absolute inset-0 z-10">
+                            {player.lastChance[i] && (
+                                <Card
+                                    card={player.lastChance[i]}
+                                    isFaceUp={true}
+                                    difficulty={difficulty}
+                                />
+                            )}
+                        </div>
                     </div>
-                    {/* Last Chance cards (in front) */}
-                    <div ref={lastChanceRef} className="relative flex justify-center space-x-2">
-                      {lcCards}
-                    </div>
-                </div>
+                 ))}
             </div>
         </div>
     );
   }
 
-  // Player's detailed view
-  const lcCards = player.lastChance.map((card) => (
-      <Card 
-        key={card.id} 
-        card={card} 
-        isFaceUp={true} 
-        isSelected={isPlayer && selectedCards.some(sc => sc.id === card.id)}
-        onClick={
-          isPlayer && (
-            currentStage === GameStage.SWAP || 
-            (isCurrentPlayer && currentStage === GameStage.PLAY && player.hand.length === 0)
-          ) ? () => onCardSelect(card) : undefined
-        }
-        difficulty={difficulty}
-        />
-  ));
-  
+  // Player's View
   const isInLastStand = isPlayer && isCurrentPlayer && player.hand.length === 0 && player.lastChance.length === 0;
 
-  const lsCards = player.lastStand.map((card, index) => {
-      const isClickable = isInLastStand && onLastStandCardSelect;
-      return (
-        <Card 
-          key={`${card.id}-${index}`} 
-          card={card} 
-          isFaceUp={false} 
-          onClick={isClickable ? () => onLastStandCardSelect(card, index) : undefined}
-          className={isClickable ? 'cursor-pointer hover:scale-105 hover:-translate-y-2 ring-2 ring-yellow-400' : ''}
-          difficulty={difficulty}
-        />
-      );
-  });
-
-  const containerClasses = isPlayer 
-    ? "absolute bottom-0 left-0 right-0 pointer-events-none"
-    : "relative";
-    
-  const arrowButtonClasses = "absolute top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-black/40 text-white text-2xl font-bold flex items-center justify-center hover:bg-black/60 transition-colors";
-
   return (
-    <div className={`flex flex-col items-center transition-all duration-300 rounded-lg ${containerClasses}`}>
+    <div className="flex flex-col items-center w-full max-w-4xl px-4 md:px-8">
       
-      {/* LS and LC cards */}
-      <div ref={cardTableRef} className="relative flex flex-col items-center mt-3 -space-y-[92px] md:-space-y-[124px] mb-[22px] pointer-events-auto">
-        {/* Last Stand cards (behind) */}
-        <div ref={lastStandRef} className="relative flex justify-center space-x-4">
-          {lsCards}
-        </div>
-        {/* Last Chance cards (in front) */}
-        <div ref={lastChanceRef} className={`relative flex justify-center space-x-4 z-10 ${player.lastChance.length === 0 ? 'pointer-events-none' : ''}`}>
-          {lcCards}
-        </div>
+      {/* Table Cards Area (LC + LS) */}
+      <div className="flex justify-center items-end w-full">
+         {/* Ghost Left Column for Alignment (matches Opponent Hand width+margin) */}
+         <div className="relative w-20 h-28 md:w-24 md:h-36 mr-4 md:mr-8 flex-shrink-0 opacity-0 pointer-events-none"></div>
+
+         <div ref={cardTableRef} className="flex space-x-2 md:space-x-4 mb-4 md:mb-8 pointer-events-auto">
+            {/* 3 Columns corresponding to LC slots */}
+            {[0, 1, 2].map(i => (
+                <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
+                    {/* Last Stand (Bottom/Behind) */}
+                    <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-1 left-1 md:top-2 md:left-2 z-0">
+                            {player.lastStand[i] && (
+                            <Card
+                                card={player.lastStand[i]}
+                                isFaceUp={false}
+                                onClick={isInLastStand && onLastStandCardSelect ? () => onLastStandCardSelect(player.lastStand[i], i) : undefined}
+                                className={isInLastStand ? 'cursor-pointer hover:scale-105 hover:-translate-y-2 ring-2 ring-yellow-400' : ''}
+                                difficulty={difficulty}
+                            />
+                            )}
+                    </div>
+                        {/* Last Chance (Top/Front) */}
+                    <div ref={lastChanceRef} id={`${typePrefix}-lc-slot-${i}`} className={`absolute inset-0 z-10 ${player.lastChance.length === 0 ? 'pointer-events-none' : ''}`}>
+                        {player.lastChance[i] && (
+                            <Card
+                                card={player.lastChance[i]}
+                                isFaceUp={true}
+                                isSelected={isPlayer && selectedCards.some(sc => sc.id === player.lastChance[i].id)}
+                                onClick={
+                                isPlayer && (
+                                    currentStage === GameStage.SWAP ||
+                                    (isCurrentPlayer && currentStage === GameStage.PLAY && player.hand.length === 0)
+                                ) ? () => onCardSelect(player.lastChance[i]) : undefined
+                                }
+                                difficulty={difficulty}
+                            />
+                        )}
+                    </div>
+                </div>
+            ))}
+         </div>
       </div>
 
 
-      {/* Hand */}
-      <div ref={playerHandRef} className="flex justify-center items-end min-h-[160px] w-full px-2 md:px-4 -mt-5 pointer-events-auto">
-        <div className={`w-full relative flex items-center transition-opacity duration-300 ${player.hand.length === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-            {handLayout.needsScrolling && scrollOffset > 0 && (
-                <button onClick={() => scrollHand('left')} className={`${arrowButtonClasses} left-0 md:left-2`}>
-                    &#x2190;
-                </button>
-            )}
+      {/* Player Hand - Full Width / Centered "Black Box" */}
+      <div ref={playerHandRef} id="player-hand-container" className="flex justify-center items-end min-h-[160px] w-full pointer-events-auto">
+        <div className={`w-full relative flex justify-center items-center transition-opacity duration-300 ${player.hand.length === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
 
-            <div ref={handContainerRef} className="w-full h-[144px] overflow-hidden">
+            <div ref={handContainerRef} className="w-full max-w-3xl h-[144px] relative">
+                {/* Max-w-3xl limits the hand spread to a reasonable width (Black Box) */}
                 <div 
-                    className="relative h-full transition-transform duration-300 ease-out"
-                    style={{
-                        width: `${handLayout.totalWidth}px`,
-                        transform: `translateX(-${scrollOffset}px)`,
-                        marginLeft: handLayout.needsScrolling ? '0' : 'auto',
-                        marginRight: handLayout.needsScrolling ? '0' : 'auto',
-                    }}
+                    className="absolute bottom-0 left-0 right-0 h-full flex justify-center"
                 >
                     {player.hand.map((card, index) => {
                         const isDisabled = isInitialPlay && (card.rank === Rank.Two || card.rank === Rank.Ten);
+
+                        // Calculate position based on spacing
+                        const totalWidth = handLayout.totalWidth;
+                        const startX = (handContainerRef.current?.offsetWidth || 0) / 2 - totalWidth / 2;
+
+                        const leftPos = startX + index * handLayout.cardSpacing;
+
                         return (
                             <div
                                 key={card.id}
-                                className={`absolute bottom-0 transition-all duration-200 ease-out hover:-translate-y-4 hover:z-20 ${hiddenCardIds.has(card.id) ? 'opacity-0' : 'opacity-100'}`}
+                                className={`absolute bottom-0 transition-all duration-200 ease-out hover:-translate-y-8 hover:z-[100] ${hiddenCardIds.has(card.id) ? 'opacity-0' : 'opacity-100'}`}
                                 style={{
-                                    left: `${index * handLayout.cardSpacing}px`,
+                                    left: `${leftPos}px`,
                                     zIndex: index,
+                                    width: window.innerWidth >= 768 ? LAYOUT_CONSTANTS.CARD_WIDTH_MD : LAYOUT_CONSTANTS.CARD_WIDTH_SM
                                 }}
                             >
                                 <Card
@@ -253,12 +235,6 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                     })}
                 </div>
             </div>
-
-            {handLayout.needsScrolling && scrollOffset < maxScrollOffset && (
-                <button onClick={() => scrollHand('right')} className={`${arrowButtonClasses} right-0 md:right-2`}>
-                    &#x2192;
-                </button>
-            )}
         </div>
       </div>
     </div>
