@@ -70,11 +70,11 @@ const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaCl
   const MpaPile = (
     <div
       ref={mpaRef}
-      className={`${mpaClasses} text-center w-24 md:w-28`}
+      className={`${mpaClasses} relative text-center w-24 md:w-28`}
       onClick={isPlayerTurn ? onMpaClick : undefined}
       aria-label={isPlayerTurn ? (hasSelectedCards ? 'Play selected cards to the pile' : 'Eat the pile') : 'Main Play Area'}
     >
-      <div className="h-8 flex items-end justify-center">
+      <div className="absolute -top-8 left-0 right-0 flex justify-center pointer-events-none">
         <div key={comboCount} className={`transition-all duration-300 ${comboCount > 1 ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`}>
           {comboCount > 1 && (
             <span
@@ -128,7 +128,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaCl
           {stage === GameStage.SETUP ? (
               DeckPile
           ) : (
-              <div className="flex items-center justify-center space-x-2 md:space-x-4">
+              <div className="flex items-start justify-center space-x-2 md:space-x-4">
                   {BinPile}
                   {MpaPile}
                   {DeckPile}

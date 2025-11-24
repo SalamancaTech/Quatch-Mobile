@@ -189,7 +189,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
   });
 
   const containerClasses = isPlayer 
-    ? "absolute bottom-0 left-0 right-0"
+    ? "absolute bottom-0 left-0 right-0 pointer-events-none"
     : "relative";
     
   const arrowButtonClasses = "absolute top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-black/40 text-white text-2xl font-bold flex items-center justify-center hover:bg-black/60 transition-colors";
@@ -198,7 +198,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
     <div className={`flex flex-col items-center transition-all duration-300 rounded-lg ${containerClasses}`}>
       
       {/* LS and LC cards */}
-      <div ref={cardTableRef} className="relative flex flex-col items-center mt-3 -space-y-[92px] md:-space-y-[124px]">
+      <div ref={cardTableRef} className="relative flex flex-col items-center mt-3 -space-y-[92px] md:-space-y-[124px] mb-[22px] pointer-events-auto">
         {/* Last Stand cards (behind) */}
         <div ref={lastStandRef} className="relative flex justify-center space-x-4">
           {lsCards}
@@ -211,7 +211,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
 
 
       {/* Hand */}
-      <div ref={playerHandRef} className="flex justify-center items-end min-h-[160px] w-full px-2 md:px-4 -mt-5">
+      <div ref={playerHandRef} className="flex justify-center items-end min-h-[160px] w-full px-2 md:px-4 -mt-5 pointer-events-auto">
         <div className={`w-full relative flex items-center transition-opacity duration-300 ${player.hand.length === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
             {handLayout.needsScrolling && scrollOffset > 0 && (
                 <button onClick={() => scrollHand('left')} className={`${arrowButtonClasses} left-0 md:left-2`}>

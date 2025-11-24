@@ -1175,7 +1175,7 @@ const App: React.FC = () => {
       />
 
       {/* Game Board Wrapper */}
-      <div className="flex-grow flex flex-col items-center justify-end pb-72">
+      <div className="flex-grow flex flex-col items-center justify-center pb-40">
           {gameState.stage === GameStage.SWAP && (
             <button 
               onClick={handleStartGame} 
