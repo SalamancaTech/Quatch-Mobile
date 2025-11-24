@@ -12,6 +12,9 @@ import GameRulesModal from './components/GameRulesModal';
 import EditNamesModal from './components/EditNamesModal';
 import StatisticsModal from './components/StatisticsModal';
 import { LAYOUT_CONSTANTS } from './constants';
+import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, TouchSensor, DragEndEvent, DragStartEvent, DragOverEvent } from '@dnd-kit/core';
+import Card from './components/Card';
+import { DroppableArea } from './components/DroppableArea';
 
 type AnimationState = {
   cards: CardType[];
@@ -102,6 +105,12 @@ const App: React.FC = () => {
   const [isStatisticsModalOpen, setIsStatisticsModalOpen] = useState(false);
   const [playerNames, setPlayerNames] = useState({ player1: 'Player 1', opponent: 'Opponent' });
 
+  // DND State
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [activeDragData, setActiveDragData] = useState<Record<string, any> | null>(null);
+  const [handReorderPreview, setHandReorderPreview] = useState<{ id: string, newIndex: number } | null>(null);
+
+
   const mpaRef = useRef<HTMLDivElement>(null);
   const playerHandRef = useRef<HTMLDivElement>(null);
   const opponentHandRef = useRef<HTMLDivElement>(null);
@@ -112,6 +121,258 @@ const App: React.FC = () => {
   const opponentLastChanceRef = useRef<HTMLDivElement>(null);
   const playerCardTableRef = useRef<HTMLDivElement>(null);
   const opponentCardTableRef = useRef<HTMLDivElement>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require movement of 8px to start drag (allows clicks)
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    setActiveDragId(active.id as string);
+    setActiveDragData(active.data.current as Record<string, any>);
+
+    // If dragging a card that is selected but not the only one, ensure visual feedback is correct.
+    // The visual feedback is handled in DragOverlay.
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) {
+        setHandReorderPreview(null);
+        return;
+    }
+
+    // Logic for Hand Reordering Preview
+    if (
+        (active.data.current?.type === 'hand-card' && over.id === 'player-hand-drop-zone') ||
+        (active.data.current?.type === 'hand-card' && over.data.current?.type === 'hand-card')
+    ) {
+        // Calculate where the card is relative to other cards
+        // Since we are using absolute positioning, we can check the X coordinate of the pointer
+        // But DndKit gives us transforms.
+        // Simplification: If dragging over another card, we can assume we want to swap/insert there.
+        // Or better: Use the index from data.
+
+        // This part is tricky with absolute positioning.
+        // We will try to rely on 'over' target.
+        if (over.data.current?.index !== undefined && active.data.current?.index !== undefined) {
+            setHandReorderPreview({
+                id: active.id as string,
+                newIndex: over.data.current.index
+            });
+        }
+    } else {
+        setHandReorderPreview(null);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    setActiveDragData(null);
+    setHandReorderPreview(null);
+
+    if (!over || !gameState) return;
+
+    const player = gameState.players.find(p => !p.isAI)!;
+    const activeData = active.data.current || {};
+    const overData = over.data.current || {};
+
+    // --- 1. Hand Reordering ---
+    if (activeData.type === 'hand-card' && (over.id === 'player-hand-drop-zone' || overData.type === 'hand-card')) {
+        // If dropped on the container or another card
+        if (activeData.index !== undefined) {
+             // Calculate new index
+             let newIndex = activeData.index;
+             if (overData.index !== undefined) {
+                 newIndex = overData.index;
+             }
+
+             if (newIndex !== activeData.index) {
+                 setGameState(prev => {
+                     if (!prev) return null;
+                     const newPlayers = prev.players.map(p => {
+                         if (p.id === player.id) {
+                             const newHand = [...p.hand];
+                             const [movedCard] = newHand.splice(activeData.index, 1);
+                             newHand.splice(newIndex, 0, movedCard);
+                             return { ...p, hand: newHand };
+                         }
+                         return p;
+                     });
+                     return { ...prev, players: newPlayers };
+                 });
+             }
+        }
+        return;
+    }
+
+    // --- 2. Playing Cards (Hand -> MPA) ---
+    if (activeData.type === 'hand-card' && over.id === 'mpa-drop-zone') {
+        const card = activeData.card;
+        // Determine cards to play
+        let cardsToPlay = [card];
+
+        // If the dragged card is part of a selection, play all selected cards
+        if (selectedCards.some(c => c.id === card.id)) {
+            cardsToPlay = selectedCards;
+        } else {
+            // Also check for implicitly playing multiples (e.g. if I drag a 5 and I have other 5s selected?
+            // The requirement says: "Option A: If I select multiple cards and then drag one of them to the pile, all selected cards are played."
+            // So if the dragged card is NOT selected, we play just it (and clear selection).
+            setSelectedCards([]);
+        }
+
+        // Validate
+        const targetCard = gameState.mpa.length > 0 ? gameState.mpa[gameState.mpa.length - 1] : undefined;
+        if (!isValidPlay(cardsToPlay, targetCard, player)) {
+             setIsInvalidPlay(true);
+             setTimeout(() => setIsInvalidPlay(false), 500);
+             return;
+        }
+
+        // Execute Play
+        // Logic similar to handlePlayCards but with specific cards
+
+        // 1. Remove cards from state
+        setGameState(prev => {
+            if (!prev) return null;
+            const newPlayers = prev.players.map(p => {
+                if (p.id === player.id) {
+                     return {
+                        ...p,
+                        hand: p.hand.filter(c => !cardsToPlay.some(sc => sc.id === c.id)),
+                        lastChance: p.lastChance.filter(c => !cardsToPlay.some(sc => sc.id === c.id))
+                    };
+                }
+                return p;
+            });
+            return { ...prev, players: newPlayers };
+        });
+
+        // 2. Animate and Finalize
+        initiatePlayAnimation(cardsToPlay, player);
+        setSelectedCards([]);
+        return;
+    }
+
+    // --- 3. Eating (MPA -> Hand) ---
+    if (active.id === 'mpa-stack' && (over.id === 'player-hand-drop-zone' || overData.type === 'hand-card')) {
+        handleEat();
+        return;
+    }
+
+    // --- 4. Swap Phase Logic ---
+    if (gameState.stage === GameStage.SWAP) {
+        // Hand -> LC Slot
+        if (activeData.type === 'hand-card' && overData.type === 'lc-slot') {
+            const handIndex = activeData.index;
+            const lcIndex = overData.index;
+            const handCard = player.hand[handIndex];
+            const lcCard = player.lastChance[lcIndex]; // Might be null/undefined if empty (though LC starts full usually)
+
+            setGameState(prev => {
+                 if (!prev) return null;
+                 const newPlayers = prev.players.map(p => {
+                     if (p.id === player.id) {
+                         const newHand = [...p.hand];
+                         const newLC = [...p.lastChance];
+
+                         // Remove from hand
+                         newHand.splice(handIndex, 1);
+
+                         // Swap or Move
+                         if (lcCard) {
+                             newHand.splice(handIndex, 0, lcCard); // Put LC card in hand at same spot (or push to end?)
+                             // Requirement: "the card will replace the card and put the other in their HAND"
+                             // Let's keep the order simple, just add it.
+                         }
+
+                         newLC[lcIndex] = handCard;
+
+                         return { ...p, hand: newHand.sort((a,b) => a.value - b.value), lastChance: newLC };
+                     }
+                     return p;
+                 });
+                 return { ...prev, players: newPlayers };
+            });
+            return;
+        }
+
+        // LC Card -> Hand (or Hand Container)
+        if (activeData.type === 'lc-card' && (over.id === 'player-hand-drop-zone' || overData.type === 'hand-card')) {
+            const lcIndex = activeData.index;
+            const lcCard = player.lastChance[lcIndex];
+
+            setGameState(prev => {
+                if (!prev) return null;
+                const newPlayers = prev.players.map(p => {
+                    if (p.id === player.id) {
+                        const newLC = [...p.lastChance];
+                        // Remove from LC (set to null or filter? type says Card[], so we filter or recreate array)
+                        // Wait, Card[] implies no gaps usually, but the UI shows slots 0,1,2.
+                        // Actually types.ts says `lastChance: Card[]`.
+                        // If we remove one, the array shrinks. The slots depend on index.
+                        // If we have [A, B, C] and move B to hand, do we get [A, C]?
+                        // The UI renders `player.lastChance[i]`. If array length is 2, slot 2 is empty.
+                        // So yes, we just remove it.
+
+                        // We need to be careful with "slot" targeting if the array shrinks.
+                        // If we drag from slot 2 (index 2) but array only has 2 items, that's impossible.
+                        // But if we drag from slot 0, array becomes length 2. The old slot 1 becomes slot 0 visually?
+                        // No, the UI map is `[0, 1, 2].map(i => ... player.lastChance[i])`.
+                        // So if we remove index 0, B moves to slot 0.
+                        // This shifts cards.
+                        // The user requirement: "all 3 cards could in theory be brought into the hand; the game CANNOT be started however, until all 3 LC cards are in place."
+                        // This implies gaps might be allowed or they just shift.
+                        // Shifting is fine.
+
+                        // Requirement: "If the player drags the LC card to their HAND, no cards will replace it, the hand will merely adopt the new card"
+
+                        // BUT: We need to support putting cards BACK into empty slots.
+                        // If I move all 3 to hand, LC is empty.
+                        // I drag a card to "LC Slot 0". It should go there.
+                        // If I drag to "LC Slot 1" (which is empty), it should go there.
+                        // Since `lastChance` is a simple array, inserting at index might be tricky if it's sparse.
+                        // Let's assume we fill from left or we need to change data structure?
+                        // "Last Chance" is usually 3 cards. If we support gaps, we need `(Card | null)[]`.
+                        // `types.ts` says `Card[]`.
+                        // If I have 2 cards, and drag to slot 2, I can't put it at index 2 if length is 2 (index 0,1).
+                        // I should probably just push it to the array.
+                        // OR: Swap Logic implies specific slots.
+
+                        // Let's stick to: Dragging to ANY LC slot appends to LC array if there's space, or swaps if there's a card.
+                        // Actually, if I specifically target Slot 1 and Slot 0 is filled, I expect it to go to Slot 1.
+                        // But if the underlying data is `Card[]`, [A, B] means Slot 0 is A, Slot 1 is B.
+                        // I can't force B to be at Slot 1 without a placeholder at Slot 0.
+
+                        // For simplicity given the types:
+                        // LC -> Hand: Remove from array.
+                        // Hand -> LC: Push to array if length < 3. If target was a specific existing card, swap.
+
+                        const newHand = [...p.hand, lcCard].sort((a,b) => a.value - b.value);
+                        newLC.splice(lcIndex, 1);
+
+                        return { ...p, hand: newHand, lastChance: newLC };
+                    }
+                    return p;
+                });
+                return { ...prev, players: newPlayers };
+            });
+            return;
+        }
+    }
+  };
 
   useEffect(() => {
     setGameState(initializeGame(playerNames.player1, playerNames.opponent));
@@ -136,6 +397,10 @@ const App: React.FC = () => {
   }, [gameState?.mpa]);
 
   const handleCardSelect = (card: CardType) => {
+      // SWAP Phase card selection logic is now mostly handled via Drag and Drop,
+      // but we keep click selection for accessibility/fallback.
+      // However, the original SWAP selection logic was complex and click-based swapping
+      // might conflict or be redundant. For now, we'll keep it as is.
     if (gameState?.stage === GameStage.SWAP) {
       const player = gameState.players.find(p => !p.isAI)!;
       
@@ -1187,6 +1452,12 @@ const App: React.FC = () => {
             );
         })}
 
+        <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+        >
         {/* --- Main Game Grid --- */}
         <div className="flex flex-col items-center gap-4 w-full max-w-4xl">
             {/* Opponent's Area */}
@@ -1210,7 +1481,8 @@ const App: React.FC = () => {
                 {gameState.stage === GameStage.SWAP && (
                     <button
                     onClick={handleStartGame}
-                    className="mb-4 px-8 py-3 bg-yellow-500 text-gray-900 font-bold rounded-lg shadow-lg hover:bg-yellow-400 transition-colors z-20 transform hover:scale-105"
+                    disabled={humanPlayer.lastChance.filter(c => c).length < 3}
+                    className={`mb-4 px-8 py-3 bg-yellow-500 text-gray-900 font-bold rounded-lg shadow-lg transition-colors z-20 transform ${humanPlayer.lastChance.filter(c => c).length < 3 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-yellow-400 hover:scale-105'}`}
                     >
                     Start Game
                     </button>
@@ -1238,24 +1510,62 @@ const App: React.FC = () => {
 
             {/* Player's Controls & Area */}
             <div className="relative w-full">
-                <PlayerArea
-                player={humanPlayer}
-                isCurrentPlayer={gameState.currentPlayerId === humanPlayer.id}
-                selectedCards={selectedCards}
-                onCardSelect={handleCardSelect}
-                onLastStandCardSelect={handleLastStandCardSelect}
-                isPlayer={true}
-                currentStage={gameState.stage}
-                hiddenCardIds={hiddenCardIds}
-                playerHandRef={playerHandRef}
-                lastStandRef={playerLastStandRef}
-                lastChanceRef={playerLastChanceRef}
-                cardTableRef={playerCardTableRef}
-                isInitialPlay={isInitialPlay}
-                difficulty={difficulty}
-                />
+                {/* Wrap the player area in a droppable for general 'Drop to Hand' actions */}
+                <DroppableArea id="player-hand-drop-zone" className="w-full">
+                    <PlayerArea
+                        player={humanPlayer}
+                        isCurrentPlayer={gameState.currentPlayerId === humanPlayer.id}
+                        selectedCards={selectedCards}
+                        onCardSelect={handleCardSelect}
+                        onLastStandCardSelect={handleLastStandCardSelect}
+                        isPlayer={true}
+                        currentStage={gameState.stage}
+                        hiddenCardIds={hiddenCardIds}
+                        playerHandRef={playerHandRef}
+                        lastStandRef={playerLastStandRef}
+                        lastChanceRef={playerLastChanceRef}
+                        cardTableRef={playerCardTableRef}
+                        isInitialPlay={isInitialPlay}
+                        difficulty={difficulty}
+                        activeDragId={activeDragId}
+                        handReorderPreview={handReorderPreview}
+                    />
+                </DroppableArea>
             </div>
         </div>
+        <DragOverlay>
+            {activeDragId && (
+                <div className="opacity-90 scale-105 cursor-grabbing" style={{ touchAction: 'none' }}>
+                    {activeDragId === 'mpa-stack' ? (
+                       <div className="relative w-20 h-28 md:w-24 md:h-36">
+                          {gameState.mpa.slice(-3).map((card, index) => (
+                             <div key={card.id} className="absolute inset-0" style={{ transform: `translateX(${index * 4}px) translateY(${index * 4}px)`}}>
+                                 <Card card={card} isFaceUp={true} difficulty={difficulty}/>
+                             </div>
+                           ))}
+                       </div>
+                    ) : (
+                        <div className="relative">
+                           {activeDragData?.card ? (
+                                selectedCards.length > 1 && selectedCards.some(c => c.id === activeDragData.card.id) ? (
+                                    // Render stack if dragging multiple
+                                    <div className="relative w-20 h-28 md:w-24 md:h-36">
+                                        {selectedCards.map((c, i) => (
+                                            <div key={c.id} className="absolute inset-0" style={{ transform: `translate(${i*4}px, ${-i*4}px)` }}>
+                                                <Card card={c} isFaceUp={true} difficulty={difficulty} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <Card card={activeDragData.card} isFaceUp={true} difficulty={difficulty}/>
+                                )
+                           ) : null}
+                        </div>
+                    )}
+                </div>
+            )}
+        </DragOverlay>
+        </DndContext>
       </div>
 
       {/* Sticky Player Name Bar */}
