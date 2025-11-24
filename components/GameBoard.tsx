@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card as CardType, Rank, Suit, GameStage, Difficulty } from '../types';
 import Card from './Card';
+import { LAYOUT_CONSTANTS } from '../constants';
 
 interface GameBoardProps {
   deckCount: number;
@@ -36,7 +37,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaCl
     }
   }
 
-  const deckWrapperClasses = "flex flex-col items-center text-center w-24 md:w-28";
+  const wrapperClasses = "relative w-20 h-28 md:w-24 md:h-36 flex flex-col items-center justify-center";
   const isDeckClickable = stage === GameStage.SETUP && dealingStep <= 3;
   const clickableDeckClasses = isDeckClickable ? "cursor-pointer transition-transform hover:scale-105 ring-4 ring-yellow-400 p-2 rounded-lg" : "";
   
@@ -52,25 +53,25 @@ const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaCl
   }
 
   const isBinClickable = isCheatingEnabled && binCount > 0;
-  const binWrapperClasses = `flex flex-col items-center text-center w-24 md:w-28 transition-transform ${isBinClickable ? 'cursor-pointer hover:scale-105' : ''}`;
-  const binRingClass = isBinClickable ? 'ring-2 ring-yellow-400' : '';
+  const binRingClass = isBinClickable ? 'ring-2 ring-yellow-400 cursor-pointer hover:scale-105' : '';
 
   const BinPile = (
-    <div className={binWrapperClasses} onClick={isBinClickable ? onBinClick : undefined}>
-      <div className={`relative w-20 h-28 md:w-24 md:h-36 ${binRingClass} rounded-lg`}>
+    <div id="slot-bin" className={`${wrapperClasses} ${binRingClass}`} onClick={isBinClickable ? onBinClick : undefined}>
+        <div className="absolute inset-0">
         {binCount > 0
           ? <Card card={{ suit: Suit.Spades, rank: Rank.Two, value: 0, id: 'bin-card' }} isFaceUp={false} className="opacity-50" difficulty={difficulty} />
           : <Card card={null} difficulty={difficulty} />
         }
-      </div>
-      {binCount > 0 && <span className="mt-2 text-sm font-bold text-white">{binCount} cards</span>}
+        </div>
+      {binCount > 0 && <span className="absolute -bottom-6 text-sm font-bold text-white whitespace-nowrap">{binCount} cards</span>}
     </div>
   );
 
   const MpaPile = (
     <div
+      id="slot-mpa"
       ref={mpaRef}
-      className={`${mpaClasses} relative text-center w-24 md:w-28`}
+      className={`${wrapperClasses} ${mpaClasses} border-none p-0`} // Reset mpaClasses sizing issues
       onClick={isPlayerTurn ? onMpaClick : undefined}
       aria-label={isPlayerTurn ? (hasSelectedCards ? 'Play selected cards to the pile' : 'Eat the pile') : 'Main Play Area'}
     >
@@ -86,7 +87,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaCl
           )}
         </div>
       </div>
-      <div className={`relative w-20 h-28 md:w-24 md:h-36 transition-opacity ${isEating ? 'opacity-0' : 'opacity-100'}`}>
+      <div className={`absolute inset-0 transition-opacity ${isEating ? 'opacity-0' : 'opacity-100'}`}>
         {mpa.slice(-3).map((card, index) => (
           <div key={card.id} className="absolute inset-0" style={{ transform: `translateX(${index * 4}px) translateY(${index * 4}px)`}}>
               <Card card={index === mpa.slice(-3).length - 1 ? card : null} isFaceUp={true} difficulty={difficulty}/>
@@ -99,17 +100,18 @@ const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaCl
 
   const DeckPile = (
     <div 
+      id="slot-deck"
       ref={deckRef}
-      className={`${deckWrapperClasses} ${isDeckClickable ? clickableDeckClasses : ""}`}
+      className={`${wrapperClasses} ${isDeckClickable ? clickableDeckClasses : ""}`}
       onClick={isDeckClickable ? onDeckClick : undefined}
     >
-      <div className="relative w-20 h-28 md:w-24 md:h-36">
+      <div className="absolute inset-0">
           {deckCount > 0
-            ? <Card card={{ suit: Suit.Spades, rank: Rank.Two, value: 0, id: 'deck-card' }} isFaceUp={false} difficulty={difficulty}/>
-            : <Card card={null} difficulty={difficulty}/>
+            ? <Card card={{ suit: Suit.Spades, rank: Rank.Two, value: 0, id: 'deck-card' }} isFaceUp={false} difficulty={difficulty} />
+            : <Card card={null} difficulty={difficulty} />
           }
       </div>
-      <span className="mt-2 font-bold text-sm h-6 text-white">
+      <span className="absolute -bottom-6 font-bold text-sm h-6 text-white whitespace-nowrap">
         {stage !== GameStage.SETUP && deckCount > 0 ? `${deckCount} left` : ''}
       </span>
     </div>
@@ -117,23 +119,35 @@ const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaCl
 
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center w-full max-w-4xl px-4 md:px-8">
       {/* Instruction text area - visible only during setup */}
       <div className="h-6 mb-2 font-bold text-yellow-300 text-lg">
           {getInstructionText()}
       </div>
 
-      {/* The row containing board elements */}
-      <div className="flex justify-center items-center w-full my-4 h-40 px-4 md:px-8">
-          {stage === GameStage.SETUP ? (
-              DeckPile
-          ) : (
-              <div className="flex items-start justify-center space-x-2 md:space-x-4">
-                  {BinPile}
+      {/* The row containing board elements aligned to match PlayerArea grid */}
+      <div className="flex justify-center items-end w-full">
+
+         {/* Column 1: Bin (Aligns with Hand) */}
+         <div className="relative w-20 h-28 md:w-24 md:h-36 mr-4 md:mr-8 flex-shrink-0 flex items-center justify-center">
+             {BinPile}
+         </div>
+
+         {/* Right Group: MPA & Deck (Aligns with LC cards) */}
+         <div className="flex space-x-2 md:space-x-4">
+              {/* Slot 1: MPA */}
+              <div className="relative w-20 h-28 md:w-24 md:h-36 flex items-center justify-center">
                   {MpaPile}
+              </div>
+
+              {/* Slot 2: Deck */}
+              <div className="relative w-20 h-28 md:w-24 md:h-36 flex items-center justify-center">
                   {DeckPile}
               </div>
-          )}
+
+              {/* Slot 3: Empty (LC3) */}
+              <div className="relative w-20 h-28 md:w-24 md:h-36 pointer-events-none"></div>
+          </div>
       </div>
     </div>
   );
