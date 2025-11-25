@@ -1,18 +1,28 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface EditNamesModalProps {
-  currentNames: { player1: string; opponent: string };
-  onSave: (newNames: { player1: string; opponent: string }) => void;
+  currentNames: string[];
+  numOpponents: number;
+  onSave: (newNames: string[]) => void;
   onClose: () => void;
 }
 
-const EditNamesModal: React.FC<EditNamesModalProps> = ({ currentNames, onSave, onClose }) => {
-  const [player1Name, setPlayer1Name] = useState(currentNames.player1);
-  const [opponentName, setOpponentName] = useState(currentNames.opponent);
+const EditNamesModal: React.FC<EditNamesModalProps> = ({ currentNames, numOpponents, onSave, onClose }) => {
+  const [names, setNames] = useState(currentNames);
+
+  useEffect(() => {
+    setNames(currentNames);
+  }, [currentNames]);
+
+  const handleNameChange = (index: number, newName: string) => {
+    const newNames = [...names];
+    newNames[index] = newName;
+    setNames(newNames);
+  };
 
   const handleSaveClick = () => {
-    onSave({ player1: player1Name, opponent: opponentName });
+    onSave(names);
   };
 
   return (
@@ -31,23 +41,25 @@ const EditNamesModal: React.FC<EditNamesModalProps> = ({ currentNames, onSave, o
             <input
               id="player1Name"
               type="text"
-              value={player1Name}
-              onChange={(e) => setPlayer1Name(e.target.value)}
+              value={names[0]}
+              onChange={(e) => handleNameChange(0, e.target.value)}
               maxLength={20}
               className="w-full p-3 bg-black/40 border border-yellow-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
             />
           </div>
-          <div>
-            <label htmlFor="opponentName" className="block text-lg font-semibold text-gray-300 mb-1">Opponent's Name</label>
-            <input
-              id="opponentName"
-              type="text"
-              value={opponentName}
-              onChange={(e) => setOpponentName(e.target.value)}
-              maxLength={20}
-              className="w-full p-3 bg-black/40 border border-yellow-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
-            />
-          </div>
+          {Array.from({ length: numOpponents }).map((_, index) => (
+            <div key={index}>
+              <label htmlFor={`opponentName${index + 1}`} className="block text-lg font-semibold text-gray-300 mb-1">{`Opponent ${index + 1}'s Name`}</label>
+              <input
+                id={`opponentName${index + 1}`}
+                type="text"
+                value={names[index + 1]}
+                onChange={(e) => handleNameChange(index + 1, e.target.value)}
+                maxLength={20}
+                className="w-full p-3 bg-black/40 border border-yellow-500/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+            </div>
+          ))}
         </div>
         <div className="flex justify-center space-x-4 mt-8">
           <button 

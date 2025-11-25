@@ -4,14 +4,14 @@ import { Player, Difficulty } from '../types';
 interface GameOverModalProps {
   winner: Player;
   humanPlayer: Player;
-  aiPlayer: Player;
+  aiPlayers: Player[];
   turnCount: number;
   gameDuration: number; // in seconds
   difficulty: Difficulty;
   onPlayAgain: () => void;
 }
 
-const GameOverModal: React.FC<GameOverModalProps> = ({ winner, humanPlayer, aiPlayer, turnCount, gameDuration, difficulty, onPlayAgain }) => {
+const GameOverModal: React.FC<GameOverModalProps> = ({ winner, humanPlayer, aiPlayers, turnCount, gameDuration, difficulty, onPlayAgain }) => {
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -48,9 +48,13 @@ const GameOverModal: React.FC<GameOverModalProps> = ({ winner, humanPlayer, aiPl
             <span className="font-semibold text-gray-300">Cards Eaten:</span>
             <span className="text-right">{humanPlayer.cardsEaten}</span>
 
-            <h3 className="col-span-2 font-bold text-lg text-center mt-2 mb-1">{aiPlayer.name}</h3>
-            <span className="font-semibold text-gray-300">Cards Eaten:</span>
-            <span className="text-right">{aiPlayer.cardsEaten}</span>
+            {aiPlayers.map((aiPlayer) => (
+              <React.Fragment key={aiPlayer.id}>
+                <h3 className="col-span-2 font-bold text-lg text-center mt-2 mb-1">{aiPlayer.name}</h3>
+                <span className="font-semibold text-gray-300">Cards Eaten:</span>
+                <span className="text-right">{aiPlayer.cardsEaten}</span>
+              </React.Fragment>
+            ))}
           </div>
         </div>
         

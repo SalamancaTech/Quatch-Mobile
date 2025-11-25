@@ -57,13 +57,18 @@ export const shuffleDeck = <T,>(array: T[]): T[] => {
   return array;
 };
 
-export const initializeGame = (player1Name: string = 'Player 1', opponentName: string = 'Opponent'): GameState => {
-    const players: Player[] = [
-        { id: 0, name: player1Name, hand: [], lastChance: [], lastStand: [], isAI: false, cardsEaten: 0 },
-        { id: 1, name: opponentName, hand: [], lastChance: [], lastStand: [], isAI: true, cardsEaten: 0 },
-    ];
+export const initializeGame = (playerNames: string[]): GameState => {
+    const players: Player[] = playerNames.map((name, index) => ({
+        id: index,
+        name: name,
+        hand: [],
+        lastChance: [],
+        lastStand: [],
+        isAI: index !== 0, // Player 0 is the human
+        cardsEaten: 0,
+    }));
     const deck = shuffleDeck(createDeck());
-    
+
     return {
         players,
         deck,
