@@ -5,7 +5,7 @@ import { GameState, Player, Difficulty } from '../types';
 interface StatisticsModalProps {
   gameState: GameState;
   humanPlayer: Player;
-  aiPlayer: Player;
+  aiPlayers: Player[];
   difficulty: Difficulty;
   onClose: () => void;
 }
@@ -25,7 +25,7 @@ const StatRow: React.FC<{ label: string; value: string | number }> = ({ label, v
     </>
 );
 
-const StatisticsModal: React.FC<StatisticsModalProps> = ({ gameState, humanPlayer, aiPlayer, difficulty, onClose }) => {
+const StatisticsModal: React.FC<StatisticsModalProps> = ({ gameState, humanPlayer, aiPlayers, difficulty, onClose }) => {
   const [activeTab, setActiveTab] = useState<'current' | 'total'>('current');
   const [time, setTime] = useState(formatDuration(gameState.gameStartTime));
 
@@ -52,13 +52,16 @@ const StatisticsModal: React.FC<StatisticsModalProps> = ({ gameState, humanPlaye
         <StatRow label="Last Chance" value={humanPlayer.lastChance.length} />
         <StatRow label="Last Stand" value={humanPlayer.lastStand.length} />
         
-        <div className="col-span-2 border-t border-yellow-300/20 my-2"></div>
-
-        <h3 className="col-span-2 font-bold text-lg text-center mb-1">{aiPlayer.name}</h3>
-        <StatRow label="Cards Eaten" value={aiPlayer.cardsEaten} />
-        <StatRow label="Cards in Hand" value={aiPlayer.hand.length} />
-        <StatRow label="Last Chance" value={aiPlayer.lastChance.length} />
-        <StatRow label="Last Stand" value={aiPlayer.lastStand.length} />
+        {aiPlayers.map((aiPlayer) => (
+          <React.Fragment key={aiPlayer.id}>
+            <div className="col-span-2 border-t border-yellow-300/20 my-2"></div>
+            <h3 className="col-span-2 font-bold text-lg text-center mb-1">{aiPlayer.name}</h3>
+            <StatRow label="Cards Eaten" value={aiPlayer.cardsEaten} />
+            <StatRow label="Cards in Hand" value={aiPlayer.hand.length} />
+            <StatRow label="Last Chance" value={aiPlayer.lastChance.length} />
+            <StatRow label="Last Stand" value={aiPlayer.lastStand.length} />
+          </React.Fragment>
+        ))}
       </div>
     </div>
   );
