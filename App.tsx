@@ -116,14 +116,10 @@ const App: React.FC = () => {
 
   const mpaRef = useRef<HTMLDivElement>(null);
   const playerHandRef = useRef<HTMLDivElement>(null);
-  const opponentHandRef = useRef<HTMLDivElement>(null);
   const deckRef = useRef<HTMLDivElement>(null);
   const playerLastStandRef = useRef<HTMLDivElement>(null);
   const playerLastChanceRef = useRef<HTMLDivElement>(null);
-  const opponentLastStandRef = useRef<HTMLDivElement>(null);
-  const opponentLastChanceRef = useRef<HTMLDivElement>(null);
   const playerCardTableRef = useRef<HTMLDivElement>(null);
-  const opponentCardTableRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -358,10 +354,30 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [numOpponents]);
 
-  useEffect(() => {
-    const initialPlayerNames = playerNames.slice(0, numOpponents + 1);
+  const resetGame = useCallback((numOpps: number) => {
+    const initialPlayerNames = playerNames.slice(0, numOpps + 1);
     setGameState(initializeGame(initialPlayerNames));
-  }, [numOpponents]);
+    setSelectedCards([]);
+    setIsInvalidPlay(false);
+    setAnimationState(null);
+    setEatAnimationState(null);
+    setDealAnimationState(null);
+    setRefillAnimationState(null);
+    setHiddenCardIds(new Set());
+    setIsInitialPlay(false);
+    setSpecialEffect(null);
+    setSpecialMessage(null);
+    setDealingStep(0);
+    setIsMenuOpen(false);
+    setIsBinViewOpen(false);
+    setIsDifficultyModalOpen(false);
+    setIsRulesModalOpen(false);
+    setIsStatisticsModalOpen(false);
+  }, [playerNames]);
+
+  useEffect(() => {
+    resetGame(numOpponents);
+  }, [numOpponents, resetGame]);
 
   useEffect(() => {
     if (!gameState || gameState.mpa.length < 2) {
@@ -537,7 +553,7 @@ const App: React.FC = () => {
 
   const initiateRefillAnimation = (cardsToDraw: CardType[], playerWhoPlayed: Player, playedCards: CardType[]) => {
     const startRect = deckRef.current?.getBoundingClientRect();
-    const endRect = playerWhoPlayed.isAI ? opponentHandRef.current?.getBoundingClientRect() : playerHandRef.current?.getBoundingClientRect();
+    const endRect = playerWhoPlayed.isAI ? document.getElementById(`opponent-${playerWhoPlayed.id}-hand-container`)?.getBoundingClientRect() : playerHandRef.current?.getBoundingClientRect();
 
     if (!startRect || !endRect) {
       console.error("Refs missing for refill animation.");
@@ -649,8 +665,8 @@ const App: React.FC = () => {
     
     if (!startRect) {
         if (player.isAI) {
-            if (opponentHandRef.current) {
-                const opponentRect = opponentHandRef.current.getBoundingClientRect();
+            const opponentRect = document.getElementById(`opponent-${player.id}-hand-container`)?.getBoundingClientRect();
+            if (opponentRect) {
                 const cardWidth = 96; // from md:w-24 in Card.tsx
                 const cardHeight = 144; // from md:h-36 in Card.tsx
                 startRect = new DOMRect(
@@ -795,7 +811,7 @@ const App: React.FC = () => {
   const initiateEatAnimation = (items: EatAnimationItem[], destination: 'player' | 'opponent') => {
       if (!gameState || items.length === 0) return;
       
-      const endRect = (destination === 'player' ? playerHandRef.current : opponentHandRef.current)?.getBoundingClientRect();
+      const endRect = (destination === 'player' ? playerHandRef.current?.getBoundingClientRect() : document.getElementById(`opponent-${gameState.currentPlayerId}-hand-container`)?.getBoundingClientRect());
       if (!endRect) return;
 
       setEatAnimationState(items);
@@ -891,134 +907,94 @@ const App: React.FC = () => {
     const playerLSRect = playerLastStandRef.current?.getBoundingClientRect();
     const playerLCRect = playerLastChanceRef.current?.getBoundingClientRect();
     const playerHandRect = playerHandRef.current?.getBoundingClientRect();
-    const opponentLSRect = opponentLastStandRef.current?.getBoundingClientRect();
-    const opponentLCRect = opponentLastChanceRef.current?.getBoundingClientRect();
-    const opponentHandRect = opponentHandRef.current?.getBoundingClientRect();
-    const playerCardTableRect = playerCardTableRef.current?.getBoundingClientRect();
-    const opponentCardTableRect = opponentCardTableRef.current?.getBoundingClientRect();
 
-    if (!playerLSRect || !playerLCRect || !playerHandRect || !opponentLSRect || !opponentLCRect || !opponentHandRect || !playerCardTableRect || !opponentCardTableRect) {
+    if (!playerLSRect || !playerLCRect || !playerHandRect) {
       console.error("A container ref is missing for dealing.");
       return;
     }
 
     const animations: DealAnimationItem[] = [];
     let delay = 0;
-    const delayIncrement = 100;
+    const delayIncrement = 50;
     const cardWidth = window.innerWidth < 768 ? 80 : 96;
     const cardHeight = window.innerWidth < 768 ? 112 : 144;
-    const spacing = 16; // Corresponds to space-x-4
     
-    let cardsToDeal: {p: CardType[], o: CardType[]};
-    let remainingDeck: CardType[];
-    let nextStep: number;
-    let endMessage: SpecialMessage = null;
-    let finalGameStateUpdate: ((prevState: GameState) => GameState) | null = null;
-    
-    const currentDeck = gameState.deck;
-    
-    // --- Step 1: Deal LS ---
-    if (dealingStep === 1) {
-        cardsToDeal = { p: currentDeck.slice(0, 3), o: currentDeck.slice(3, 6) };
-        remainingDeck = currentDeck.slice(6);
-        nextStep = 2;
-        
-        for (let i = 0; i < 3; i++) {
-            // Player LS
-            const pRect = getPreciseSlotRect(`player-ls-slot-${i}`) || playerLastStandRef.current?.getBoundingClientRect();
-            if (pRect) {
-                animations.push({ card: cardsToDeal.p[i], startRect, endRect: pRect, delay, isFaceUp: false, id: `deal-${cardsToDeal.p[i].id}` });
-            }
-            delay += delayIncrement;
+    const numPlayers = gameState.players.length;
+    let currentDeck = [...gameState.deck];
 
-            // Opponent LS
-            const oRect = getPreciseSlotRect(`opponent-ls-slot-${i}`) || opponentLastStandRef.current?.getBoundingClientRect();
-             if (oRect) {
-                animations.push({ card: cardsToDeal.o[i], startRect, endRect: oRect, delay, isFaceUp: false, id: `deal-${cardsToDeal.o[i].id}` });
+    // --- Deal Last Stand ---
+    const lsCardsForStep = currentDeck.slice(0, numPlayers * 3);
+    currentDeck = currentDeck.slice(numPlayers * 3);
+    const lsCardsToDeal = Array.from({ length: numPlayers }, (_, i) => lsCardsForStep.slice(i * 3, (i + 1) * 3));
+
+    for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < numPlayers; j++) {
+            const player = gameState.players[j];
+            const rect = getPreciseSlotRect(`${player.isAI ? `opponent-${player.id}` : 'player'}-ls-slot-${i}`);
+            if (rect) {
+                animations.push({ card: lsCardsToDeal[j][i], startRect, endRect: rect, delay, isFaceUp: false, id: `deal-ls-${lsCardsToDeal[j][i].id}` });
             }
             delay += delayIncrement;
         }
-        
-        finalGameStateUpdate = (prev) => ({
-            ...prev,
-            players: prev.players.map(p => p.isAI ? { ...p, lastStand: cardsToDeal.o } : { ...p, lastStand: cardsToDeal.p }),
-            deck: remainingDeck,
-        });
-    } 
-    // --- Step 2: Deal LC ---
-    else if (dealingStep === 2) {
-        cardsToDeal = { p: currentDeck.slice(0, 3), o: currentDeck.slice(3, 6) };
-        remainingDeck = currentDeck.slice(6);
-        nextStep = 3;
-
-        for (let i = 0; i < 3; i++) {
-            // Player LC
-            const pRect = getPreciseSlotRect(`player-lc-slot-${i}`) || playerLastChanceRef.current?.getBoundingClientRect();
-            if (pRect) {
-                 animations.push({ card: cardsToDeal.p[i], startRect, endRect: pRect, delay, isFaceUp: true, id: `deal-${cardsToDeal.p[i].id}` });
-            }
-            delay += delayIncrement;
-
-            // Opponent LC
-            const oRect = getPreciseSlotRect(`opponent-lc-slot-${i}`) || opponentLastChanceRef.current?.getBoundingClientRect();
-            if (oRect) {
-                animations.push({ card: cardsToDeal.o[i], startRect, endRect: oRect, delay, isFaceUp: true, id: `deal-${cardsToDeal.o[i].id}` });
-            }
-            delay += delayIncrement;
-        }
-        
-        finalGameStateUpdate = (prev) => ({
-            ...prev,
-            players: prev.players.map(p => p.isAI ? { ...p, lastChance: cardsToDeal.o } : { ...p, lastChance: cardsToDeal.p }),
-            deck: remainingDeck,
-        });
     }
-    // --- Step 3: Deal Hand ---
-    else if (dealingStep === 3) {
-        cardsToDeal = { p: currentDeck.slice(0, 3), o: currentDeck.slice(3, 6) };
-        remainingDeck = currentDeck.slice(6);
-        nextStep = 4;
 
-        // Use container rect for opponent hand
-        const opponentHandContainerRect = document.getElementById('opponent-hand-container')?.getBoundingClientRect() || opponentHandRect;
+    // --- Deal Last Chance ---
+    const lcCardsForStep = currentDeck.slice(0, numPlayers * 3);
+    currentDeck = currentDeck.slice(numPlayers * 3);
+    const lcCardsToDeal = Array.from({ length: numPlayers }, (_, i) => lcCardsForStep.slice(i * 3, (i + 1) * 3));
 
-        for (let i = 0; i < 3; i++) {
-            animations.push({ card: cardsToDeal.p[i], startRect, endRect: getHandCardFanRect(playerHandRect, i, 3, cardWidth, cardHeight), delay, isFaceUp: true, id: `deal-${cardsToDeal.p[i].id}` });
-            delay += delayIncrement;
-            animations.push({ card: cardsToDeal.o[i], startRect, endRect: opponentHandContainerRect, delay, isFaceUp: false, id: `deal-${cardsToDeal.o[i].id}` });
+    for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < numPlayers; j++) {
+            const player = gameState.players[j];
+            const rect = getPreciseSlotRect(`${player.isAI ? `opponent-${player.id}` : 'player'}-lc-slot-${i}`);
+            if (rect) {
+                animations.push({ card: lcCardsToDeal[j][i], startRect, endRect: rect, delay, isFaceUp: true, id: `deal-lc-${lcCardsToDeal[j][i].id}` });
+            }
             delay += delayIncrement;
         }
-        
-        finalGameStateUpdate = (prev) => {
-            const playersWithHands = prev.players.map(p => {
-                if (p.isAI) return { ...p, hand: cardsToDeal.o };
-                return { ...p, hand: cardsToDeal.p.sort((a,b) => a.value - b.value) };
-            });
-            
-            return {
-                ...prev,
-                players: playersWithHands,
-                deck: remainingDeck,
-                stage: GameStage.SWAP,
-                currentPlayerId: -1,
-                isPlayerTurn: false,
-            };
+    }
+
+    // --- Deal Hand ---
+    const handCardsForStep = currentDeck.slice(0, numPlayers * 3);
+    currentDeck = currentDeck.slice(numPlayers * 3);
+    const handCardsToDeal = Array.from({ length: numPlayers }, (_, i) => handCardsForStep.slice(i * 3, (i + 1) * 3));
+
+    for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < numPlayers; j++) {
+            const player = gameState.players[j];
+            const rect = player.isAI ? document.getElementById(`opponent-${player.id}-hand-container`)?.getBoundingClientRect() : getHandCardFanRect(playerHandRect, i, 3, cardWidth, cardHeight);
+            if (rect) {
+              animations.push({ card: handCardsToDeal[j][i], startRect, endRect: rect, delay, isFaceUp: !player.isAI, id: `deal-hand-${handCardsToDeal[j][i].id}` });
+            }
+            delay += delayIncrement;
+        }
+    }
+    
+    const finalGameStateUpdate = (prev: GameState): GameState => {
+        const newPlayers = prev.players.map((p, i) => ({
+            ...p,
+            lastStand: lsCardsToDeal[i],
+            lastChance: lcCardsToDeal[i],
+            hand: p.isAI ? handCardsToDeal[i] : handCardsToDeal[i].sort((a, b) => a.value - b.value),
+        }));
+
+        return {
+            ...prev,
+            players: newPlayers,
+            deck: currentDeck, // This is the final remaining deck
+            stage: GameStage.SWAP,
+            currentPlayerId: -1,
+            isPlayerTurn: false,
         };
-    } else {
-      return; // Should not happen
-    }
-    
+    };
+
+    setDealingStep(4); // Immediately prevent further clicks
     setDealAnimationState(animations);
-    const totalAnimationTime = delay + 700; // Last card's delay + animation duration
+    const totalAnimationTime = delay + 700;
     setTimeout(() => {
-        setGameState(finalGameStateUpdate!);
+        setGameState(finalGameStateUpdate);
         setDealAnimationState(null);
-        setDealingStep(nextStep);
-        if (nextStep === 4) {
-            setSpecialMessage({ text: "Change Cards?", type: 'event' });
-        } else if (endMessage) {
-            setSpecialMessage(endMessage);
-        }
+        setSpecialMessage({ text: "Change Cards?", type: 'event' });
     }, totalAnimationTime);
   };
   
@@ -1035,36 +1011,14 @@ const App: React.FC = () => {
       setIsMenuOpen(false);
   }
 
-  const handleResetGame = () => {
-    const initialPlayerNames = playerNames.slice(0, numOpponents + 1);
-    setGameState(initializeGame(initialPlayerNames));
-    setSelectedCards([]);
-    setIsInvalidPlay(false);
-    setAnimationState(null);
-    setEatAnimationState(null);
-    setDealAnimationState(null);
-    setRefillAnimationState(null);
-    setHiddenCardIds(new Set());
-    setIsInitialPlay(false);
-    setSpecialEffect(null);
-    setSpecialMessage(null);
-    setDealingStep(0);
-    setIsMenuOpen(false);
-    setIsBinViewOpen(false);
-    setIsDifficultyModalOpen(false);
-    setIsRulesModalOpen(false);
-    setIsStatisticsModalOpen(false);
-  }
-
   const handleSetDifficulty = (newDifficulty: Difficulty) => {
     setDifficulty(newDifficulty);
-    handleResetGame();
+    resetGame(numOpponents);
   };
 
   const handleSelectNumOpponents = (num: number) => {
     setNumOpponents(num);
     setIsNumPlayersModalOpen(false);
-    handleResetGame();
   };
 
   const handleSaveNames = (newNames: string[]) => {
@@ -1298,7 +1252,7 @@ const App: React.FC = () => {
             </button>
             {isMenuOpen && (
             <div className="absolute top-12 right-0 bg-gray-800 rounded-lg shadow-xl py-2 w-56">
-                <button onClick={handleResetGame} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">New Game</button>
+                <button onClick={() => resetGame(numOpponents)} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">New Game</button>
                 <button onClick={() => { setIsNumPlayersModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Number of Opponents</button>
                 <button onClick={() => { setIsDifficultyModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Change Difficulty</button>
                 <button onClick={() => { setIsEditNamesModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Edit Names</button>
@@ -1420,7 +1374,7 @@ const App: React.FC = () => {
             />
         ))}
         {eatAnimationState && eatAnimationState.map((item, index) => {
-            const destination = gameState.players[gameState.currentPlayerId].isAI ? opponentHandRef.current : playerHandRef.current;
+            const destination = gameState.players[gameState.currentPlayerId].isAI ? document.getElementById(`opponent-${gameState.currentPlayerId}-hand-container`) : playerHandRef.current;
             return (
                 <AnimatedCard
                 key={item.id}
@@ -1448,15 +1402,14 @@ const App: React.FC = () => {
             onDragEnd={handleDragEnd}
         >
         {/* --- Main Game Grid --- */}
-        <div className="relative w-full h-full flex items-center justify-center">
-          <div className="absolute top-0">
+        <div className="relative w-full h-full flex items-center justify-center pointer-events-none">
+          <div className="absolute top-0 pointer-events-none">
             {topPlayer && (
               <PlayerArea
                 player={topPlayer}
                 isCurrentPlayer={gameState.currentPlayerId === topPlayer.id}
                 selectedCards={[]}
                 onCardSelect={() => {}}
-                isPlayer={false}
                 currentStage={gameState.stage}
                 hiddenCardIds={hiddenCardIds}
                 difficulty={difficulty}
@@ -1464,14 +1417,13 @@ const App: React.FC = () => {
               />
             )}
           </div>
-          <div className="absolute left-0">
+          <div className="absolute left-0 pointer-events-none">
             {leftPlayer && (
               <PlayerArea
                 player={leftPlayer}
                 isCurrentPlayer={gameState.currentPlayerId === leftPlayer.id}
                 selectedCards={[]}
                 onCardSelect={() => {}}
-                isPlayer={false}
                 currentStage={gameState.stage}
                 hiddenCardIds={hiddenCardIds}
                 difficulty={difficulty}
@@ -1479,14 +1431,13 @@ const App: React.FC = () => {
               />
             )}
           </div>
-          <div className="absolute right-0">
+          <div className="absolute right-0 pointer-events-none">
             {rightPlayer && (
               <PlayerArea
                 player={rightPlayer}
                 isCurrentPlayer={gameState.currentPlayerId === rightPlayer.id}
                 selectedCards={[]}
                 onCardSelect={() => {}}
-                isPlayer={false}
                 currentStage={gameState.stage}
                 hiddenCardIds={hiddenCardIds}
                 difficulty={difficulty}
@@ -1496,7 +1447,7 @@ const App: React.FC = () => {
           </div>
 
           {/* Game Board Wrapper */}
-          <div className="flex-grow flex flex-col items-center justify-center">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
                 {gameState.stage === GameStage.SWAP && (
                     <button
                     onClick={handleStartGame}
@@ -1528,7 +1479,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Player's Controls & Area */}
-            <div className="relative w-full">
+            <div className="absolute bottom-0 pointer-events-auto">
                 {/* Wrap the player area in a droppable for general 'Drop to Hand' actions */}
                 <DroppableArea id="player-hand-drop-zone" className="w-full">
                     <PlayerArea
@@ -1538,7 +1489,6 @@ const App: React.FC = () => {
                         position="bottom"
                         onCardSelect={handleCardSelect}
                         onLastStandCardSelect={handleLastStandCardSelect}
-                        isPlayer={true}
                         currentStage={gameState.stage}
                         hiddenCardIds={hiddenCardIds}
                         playerHandRef={playerHandRef}
@@ -1600,7 +1550,7 @@ const App: React.FC = () => {
             turnCount={gameState.turnCount}
             gameDuration={Math.round((Date.now() - gameState.gameStartTime) / 1000)}
             difficulty={difficulty}
-            onPlayAgain={handleResetGame}
+            onPlayAgain={() => resetGame(numOpponents)}
           />
       )}
     </div>

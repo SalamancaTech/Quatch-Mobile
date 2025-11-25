@@ -78,7 +78,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
     };
   }, [isHuman, player.hand.length]);
   
-  const typePrefix = isHuman ? 'player' : 'opponent';
+  const typePrefix = isHuman ? 'player' : `opponent-${player.id}`;
 
   // Opponent's Consolidated View
   if (!isHuman) {
@@ -105,7 +105,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
 
     if (position === 'top') {
       return (
-          <div className="player-area flex justify-center items-end w-full max-w-4xl px-4 md:px-8">
+          <div className="player-area flex justify-center items-end w-full max-w-4xl px-4 md:px-8 pointer-events-none">
               {/* Center Group: Table Cards (LC + LS) aligned with Board */}
               <div ref={cardTableRef} className="relative flex space-x-2 md:space-x-4">
 
@@ -157,7 +157,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
       // Vertical layout for left/right players
       const isLeft = position === 'left';
       return (
-        <div className={`player-area flex flex-col items-center justify-center w-48 h-full p-4 ${isLeft ? 'mr-auto' : 'ml-auto'}`}>
+        <div className={`player-area flex flex-col items-center justify-center w-48 h-full p-4 ${isLeft ? 'mr-auto' : 'ml-auto'} pointer-events-none`}>
           <div ref={cardTableRef} className="relative flex flex-col space-y-2 md:space-y-4">
             <div
               ref={playerHandRef}
@@ -314,7 +314,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                                 data={{ type: 'hand-card', index: index, card: card }} // Keep original index in data
                                 droppableData={isHuman ? { type: 'hand-card', index: index } : undefined}
                                 disabled={!isHuman || isDisabled || (!isCurrentPlayer && currentStage !== GameStage.SWAP)}
-                                className={`absolute bottom-0 transition-all duration-200 ease-out hover:-translate-y-8 hover:z-[100] ${hiddenCardIds.has(card.id) ? 'opacity-0' : 'opacity-100'}`}
+                                className={`player-hand-card-wrapper absolute bottom-0 transition-all duration-200 ease-out hover:-translate-y-8 hover:z-[100] ${hiddenCardIds.has(card.id) ? 'opacity-0' : 'opacity-100'}`}
                                 style={{
                                     left: `${leftPos}px`,
                                     zIndex: currentVisualIndex,
