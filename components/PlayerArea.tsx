@@ -2,6 +2,8 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Player, Card as CardType, GameStage, Suit, Rank, Difficulty } from '../types';
 import Card from './Card';
 import { LAYOUT_CONSTANTS } from '../constants';
+import { DraggableCard } from './DraggableCard';
+import { DroppableArea } from './DroppableArea';
 
 interface PlayerAreaProps {
   player: Player;
@@ -18,9 +20,11 @@ interface PlayerAreaProps {
   cardTableRef?: React.RefObject<HTMLDivElement>;
   isInitialPlay?: boolean;
   difficulty: Difficulty;
+  activeDragId?: string | null;
+  handReorderPreview?: { id: string, newIndex: number } | null;
 }
 
-const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, selectedCards, onCardSelect, onLastStandCardSelect, isPlayer, currentStage, hiddenCardIds, playerHandRef, lastStandRef, lastChanceRef, cardTableRef, isInitialPlay = false, difficulty }) => {
+const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, selectedCards, onCardSelect, onLastStandCardSelect, isPlayer, currentStage, hiddenCardIds, playerHandRef, lastStandRef, lastChanceRef, cardTableRef, isInitialPlay = false, difficulty, activeDragId, handReorderPreview }) => {
   const handContainerRef = useRef<HTMLDivElement>(null);
   const [handLayout, setHandLayout] = useState({
     cardSpacing: 0,
@@ -100,20 +104,25 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
 
     return (
         <div className="flex justify-center items-end w-full max-w-4xl px-4 md:px-8">
-            {/* Left Column: Opponent Hand */}
-            <div ref={playerHandRef} id={`${typePrefix}-hand-container`} className="relative w-20 h-28 md:w-24 md:h-36 mr-4 md:mr-8 flex-shrink-0">
-                <div className="relative w-full h-full">
-                    {handCardCount > 0 && handCards}
-                    {handCardCount > 0 && (
-                        <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
-                            {handCardCount}
-                        </div>
-                    )}
-                </div>
-            </div>
+            {/* Center Group: Table Cards (LC + LS) aligned with Board */}
+            <div ref={cardTableRef} className="relative flex space-x-2 md:space-x-4">
 
-            {/* Right Group: Table Cards (LC + LS) */}
-            <div ref={cardTableRef} className="flex space-x-2 md:space-x-4">
+                 {/* Opponent Hand (Attached to the left of the group) */}
+                 <div
+                    ref={playerHandRef}
+                    id={`${typePrefix}-hand-container`}
+                    className="absolute top-0 right-full w-20 h-28 md:w-24 md:h-36 mr-4 md:mr-8"
+                 >
+                    <div className="relative w-full h-full">
+                        {handCardCount > 0 && handCards}
+                        {handCardCount > 0 && (
+                            <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
+                                {handCardCount}
+                            </div>
+                        )}
+                    </div>
+                 </div>
+
                  {/* 3 Columns corresponding to LC slots */}
                  {[0, 1, 2].map(i => (
                     <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
@@ -152,8 +161,6 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
       
       {/* Table Cards Area (LC + LS) */}
       <div className="flex justify-center items-end w-full">
-         {/* Ghost Left Column for Alignment (matches Opponent Hand width+margin) */}
-         <div className="relative w-20 h-28 md:w-24 md:h-36 mr-4 md:mr-8 flex-shrink-0 opacity-0 pointer-events-none"></div>
 
          <div ref={cardTableRef} className="flex space-x-2 md:space-x-4 mb-4 md:mb-8 pointer-events-auto">
             {/* 3 Columns corresponding to LC slots */}
@@ -173,21 +180,48 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                     </div>
                         {/* Last Chance (Top/Front) */}
                     <div ref={lastChanceRef} id={`${typePrefix}-lc-slot-${i}`} className={`absolute inset-0 z-10 ${player.lastChance.length === 0 ? 'pointer-events-none' : ''}`}>
-                        {player.lastChance[i] && (
-                            <Card
-                                card={player.lastChance[i]}
-                                isFaceUp={true}
-                                isSelected={isPlayer && selectedCards.some(sc => sc.id === player.lastChance[i].id)}
-                                onClick={
-                                isPlayer && (
-                                    currentStage === GameStage.SWAP ||
-                                    (isCurrentPlayer && currentStage === GameStage.PLAY && player.hand.length === 0)
-                                ) ? () => onCardSelect(player.lastChance[i]) : undefined
-                                }
-                                difficulty={difficulty}
-                            />
-                        )}
+                        {player.lastChance[i] ? (
+                            isPlayer && currentStage === GameStage.SWAP ? (
+                                <DraggableCard
+                                    id={`lc-card-${player.lastChance[i].id}`}
+                                    data={{ type: 'lc-card', index: i, card: player.lastChance[i] }}
+                                    className="w-full h-full"
+                                >
+                                    <Card
+                                        card={player.lastChance[i]}
+                                        isFaceUp={true}
+                                        isSelected={isPlayer && selectedCards.some(sc => sc.id === player.lastChance[i].id)}
+                                        onClick={isPlayer && currentStage === GameStage.SWAP ? () => onCardSelect(player.lastChance[i]) : undefined}
+                                        difficulty={difficulty}
+                                    />
+                                </DraggableCard>
+                            ) : (
+                                <Card
+                                    card={player.lastChance[i]}
+                                    isFaceUp={true}
+                                    isSelected={isPlayer && selectedCards.some(sc => sc.id === player.lastChance[i].id)}
+                                    onClick={
+                                    isPlayer && (
+                                        (isCurrentPlayer && currentStage === GameStage.PLAY && player.hand.length === 0)
+                                    ) ? () => onCardSelect(player.lastChance[i]) : undefined
+                                    }
+                                    difficulty={difficulty}
+                                />
+                            )
+                        ) : null}
                     </div>
+                    {/* Make the LC slot droppable during SWAP */}
+                    {isPlayer && currentStage === GameStage.SWAP && (
+                         <DroppableArea
+                            id={`lc-slot-${i}`}
+                            data={{ type: 'lc-slot', index: i }}
+                            className="absolute inset-0 z-20"
+                            style={{ pointerEvents: 'none' }} // Ensure it doesn't block clicks? Actually dropping needs pointer events.
+                         >
+                            {/* Empty div for hit area */}
+                            <div className="w-full h-full pointer-events-none" />
+                         </DroppableArea>
+                    )}
                 </div>
             ))}
          </div>
@@ -206,19 +240,36 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                     {player.hand.map((card, index) => {
                         const isDisabled = isInitialPlay && (card.rank === Rank.Two || card.rank === Rank.Ten);
 
+                        // Visual reordering logic
+                        let visualList = [...player.hand];
+                        if (handReorderPreview && isPlayer) {
+                             const draggedIndex = visualList.findIndex(c => c.id === handReorderPreview.id);
+                             if (draggedIndex > -1) {
+                                 const [item] = visualList.splice(draggedIndex, 1);
+                                 visualList.splice(handReorderPreview.newIndex, 0, item);
+                             }
+                        }
+
+                        // Find where 'card' is in the visual list
+                        const currentVisualIndex = visualList.findIndex(c => c.id === card.id);
+
                         // Calculate position based on spacing
                         const totalWidth = handLayout.totalWidth;
                         const startX = (handContainerRef.current?.offsetWidth || 0) / 2 - totalWidth / 2;
 
-                        const leftPos = startX + index * handLayout.cardSpacing;
+                        const leftPos = startX + currentVisualIndex * handLayout.cardSpacing;
 
                         return (
-                            <div
+                            <DraggableCard
                                 key={card.id}
+                                id={card.id}
+                                data={{ type: 'hand-card', index: index, card: card }} // Keep original index in data
+                                droppableData={isPlayer ? { type: 'hand-card', index: index } : undefined}
+                                disabled={!isPlayer || isDisabled || (!isCurrentPlayer && currentStage !== GameStage.SWAP)}
                                 className={`absolute bottom-0 transition-all duration-200 ease-out hover:-translate-y-8 hover:z-[100] ${hiddenCardIds.has(card.id) ? 'opacity-0' : 'opacity-100'}`}
                                 style={{
                                     left: `${leftPos}px`,
-                                    zIndex: index,
+                                    zIndex: currentVisualIndex,
                                     width: window.innerWidth >= 768 ? LAYOUT_CONSTANTS.CARD_WIDTH_MD : LAYOUT_CONSTANTS.CARD_WIDTH_SM
                                 }}
                             >
@@ -230,7 +281,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                                     isDisabled={isDisabled}
                                     difficulty={difficulty}
                                 />
-                            </div>
+                            </DraggableCard>
                         );
                     })}
                 </div>

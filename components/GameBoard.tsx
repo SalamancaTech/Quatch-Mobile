@@ -2,6 +2,8 @@ import React from 'react';
 import { Card as CardType, Rank, Suit, GameStage, Difficulty } from '../types';
 import Card from './Card';
 import { LAYOUT_CONSTANTS } from '../constants';
+import { DraggableCard } from './DraggableCard';
+import { DroppableArea } from './DroppableArea';
 
 interface GameBoardProps {
   deckCount: number;
@@ -67,35 +69,52 @@ const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaCl
     </div>
   );
 
-  const MpaPile = (
-    <div
-      id="slot-mpa"
-      ref={mpaRef}
-      className={`${wrapperClasses} ${mpaClasses} border-none p-0`} // Reset mpaClasses sizing issues
-      onClick={isPlayerTurn ? onMpaClick : undefined}
-      aria-label={isPlayerTurn ? (hasSelectedCards ? 'Play selected cards to the pile' : 'Eat the pile') : 'Main Play Area'}
-    >
-      <div className="absolute -top-8 left-0 right-0 flex justify-center pointer-events-none">
-        <div key={comboCount} className={`transition-all duration-300 ${comboCount > 1 ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`}>
-          {comboCount > 1 && (
-            <span
-              className="text-3xl font-black text-yellow-300"
-              style={{ textShadow: '0 0 5px rgba(0,0,0,0.8), 0 0 10px #fde047' }}
-            >
-              x{comboCount}
-            </span>
-          )}
-        </div>
-      </div>
-      <div className={`absolute inset-0 transition-opacity ${isEating ? 'opacity-0' : 'opacity-100'}`}>
+  const MpaContent = (
+    <div className={`absolute inset-0 transition-opacity ${isEating ? 'opacity-0' : 'opacity-100'}`}>
         {mpa.slice(-3).map((card, index) => (
           <div key={card.id} className="absolute inset-0" style={{ transform: `translateX(${index * 4}px) translateY(${index * 4}px)`}}>
               <Card card={index === mpa.slice(-3).length - 1 ? card : null} isFaceUp={true} difficulty={difficulty}/>
           </div>
         ))}
         {mpa.length === 0 && <Card card={null} difficulty={difficulty}/>}
-      </div>
     </div>
+  );
+
+  const MpaPile = (
+    <DroppableArea id="mpa-drop-zone" className={`${wrapperClasses} ${mpaClasses} border-none p-0`}>
+        <div
+        id="slot-mpa"
+        ref={mpaRef}
+        className="w-full h-full relative"
+        onClick={isPlayerTurn ? onMpaClick : undefined}
+        aria-label={isPlayerTurn ? (hasSelectedCards ? 'Play selected cards to the pile' : 'Eat the pile') : 'Main Play Area'}
+        >
+        <div className="absolute -top-8 left-0 right-0 flex justify-center pointer-events-none">
+            <div key={comboCount} className={`transition-all duration-300 ${comboCount > 1 ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`}>
+            {comboCount > 1 && (
+                <span
+                className="text-3xl font-black text-yellow-300"
+                style={{ textShadow: '0 0 5px rgba(0,0,0,0.8), 0 0 10px #fde047' }}
+                >
+                x{comboCount}
+                </span>
+            )}
+            </div>
+        </div>
+        {/* If MPA has cards and it's player turn, make it draggable (for eating) */}
+        {mpa.length > 0 && isPlayerTurn && !hasSelectedCards ? (
+            <DraggableCard
+                id="mpa-stack"
+                data={{ type: 'mpa-stack', count: mpa.length }}
+                className="w-full h-full"
+            >
+                {MpaContent}
+            </DraggableCard>
+        ) : (
+            MpaContent
+        )}
+        </div>
+    </DroppableArea>
   );
 
   const DeckPile = (
@@ -128,12 +147,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaCl
       {/* The row containing board elements aligned to match PlayerArea grid */}
       <div className="flex justify-center items-end w-full">
 
-         {/* Left Column: Ghost (Matches Opponent Hand position) */}
-         <div className="relative w-20 h-28 md:w-24 md:h-36 mr-4 md:mr-8 flex-shrink-0 flex items-center justify-center opacity-0 pointer-events-none">
-             {/* Empty ghost slot to maintain grid alignment */}
-         </div>
-
-         {/* Right Group: Bin, MPA, Deck (Aligns with Slots 0, 1, 2) */}
+         {/* Center Group: Bin, MPA, Deck (Aligns with Slots 0, 1, 2) */}
          <div className="flex space-x-2 md:space-x-4">
               {/* Slot 0: Bin */}
               <div className="relative w-20 h-28 md:w-24 md:h-36 flex items-center justify-center">
