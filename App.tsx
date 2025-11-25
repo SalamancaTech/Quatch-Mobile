@@ -841,63 +841,23 @@ const App: React.FC = () => {
     const player = gameState.players.find(p => !p.isAI)!;
     if (player.hand.length > 0 || player.lastChance.length > 0) return;
     
-    const targetCard = gameState.mpa.length > 0 ? gameState.mpa[gameState.mpa.length - 1] : undefined;
-    const lsCardElement = playerLastStandRef.current?.children[index] as HTMLElement;
-    const lsCardRect = lsCardElement?.getBoundingClientRect();
-    
-    if (isValidPlay([card], targetCard, player)) {
-        // Remove card from state immediately so the UI updates.
-        setGameState(prev => {
-            if (!prev) return null;
-            const newPlayers = prev.players.map(p => {
-                if (p.id === player.id) {
-                    const newLastStand = [...p.lastStand];
-                    newLastStand.splice(index, 1);
-                    return { ...p, lastStand: newLastStand };
-                }
-                return p;
-            });
-            return { ...prev, players: newPlayers };
-        });
+    // Move Last Stand card to hand
+    setGameState(prev => {
+        if (!prev) return null;
+        const newPlayers = prev.players.map(p => {
+            if (p.id === player.id) {
+                const newLastStand = [...p.lastStand];
+                newLastStand.splice(index, 1);
 
-        if (lsCardRect) {
-            initiatePlayAnimation([card], player, lsCardRect);
-        } else {
-            // This is the fallback path if the element wasn't found for animation.
-            // The card is already removed from lastStand, so we just need to complete the play.
-            console.warn("Could not find Last Stand card element for animation. Completing play instantly.");
-            handlePlayComplete([card], player); 
-        }
-    } else {
-        // Bust! Eat the pile + the failed card
-        setSpecialMessage({ text: "You Bust!", type: 'event' });
+                // Add to hand and sort
+                const newHand = [...p.hand, card].sort((a,b) => a.value - b.value);
 
-        // Remove card from state before animating eat
-        setGameState(prev => {
-            if (!prev) return null;
-            const newPlayers = prev.players.map(p => {
-                if (p.id === player.id) {
-                    const newLastStand = [...p.lastStand];
-                    newLastStand.splice(index, 1);
-                    return { ...p, lastStand: newLastStand };
-                }
-                return p;
-            });
-            return { ...prev, mpa: [] }; // Also clear MPA for animation
+                return { ...p, lastStand: newLastStand, hand: newHand };
+            }
+            return p;
         });
-
-        const items: EatAnimationItem[] = gameState.mpa.map(c => ({
-            card: c,
-            startRect: mpaRef.current!.getBoundingClientRect(),
-            id: `eat-${c.id}`
-        }));
-        items.push({
-            card,
-            startRect: lsCardRect || mpaRef.current!.getBoundingClientRect(), // Fallback startRect if card rect is missing
-            id: `eat-fail-${card.id}`
-        });
-        initiateEatAnimation(items, 'player');
-    }
+        return { ...prev, players: newPlayers };
+    });
   }
 
   const handleDeckClick = () => {
