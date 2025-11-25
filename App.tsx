@@ -227,42 +227,12 @@ const App: React.FC = () => {
         if (selectedCards.some(c => c.id === card.id)) {
             cardsToPlay = selectedCards;
         } else {
-            // Also check for implicitly playing multiples (e.g. if I drag a 5 and I have other 5s selected?
-            // The requirement says: "Option A: If I select multiple cards and then drag one of them to the pile, all selected cards are played."
-            // So if the dragged card is NOT selected, we play just it (and clear selection).
+            // If the dragged card is NOT selected, we play just it (and clear selection).
             setSelectedCards([]);
         }
 
-        // Validate
-        const targetCard = gameState.mpa.length > 0 ? gameState.mpa[gameState.mpa.length - 1] : undefined;
-        if (!isValidPlay(cardsToPlay, targetCard, player)) {
-             setIsInvalidPlay(true);
-             setTimeout(() => setIsInvalidPlay(false), 500);
-             return;
-        }
-
-        // Execute Play
-        // Logic similar to handlePlayCards but with specific cards
-
-        // 1. Remove cards from state
-        setGameState(prev => {
-            if (!prev) return null;
-            const newPlayers = prev.players.map(p => {
-                if (p.id === player.id) {
-                     return {
-                        ...p,
-                        hand: p.hand.filter(c => !cardsToPlay.some(sc => sc.id === c.id)),
-                        lastChance: p.lastChance.filter(c => !cardsToPlay.some(sc => sc.id === c.id))
-                    };
-                }
-                return p;
-            });
-            return { ...prev, players: newPlayers };
-        });
-
-        // 2. Animate and Finalize
-        initiatePlayAnimation(cardsToPlay, player);
-        setSelectedCards([]);
+        // Call the centralized play handler
+        handlePlayCards(cardsToPlay);
         return;
     }
 
@@ -700,12 +670,12 @@ const App: React.FC = () => {
     });
   };
 
-  const handlePlayCards = () => {
-    if (!gameState || !gameState.isPlayerTurn || selectedCards.length === 0 || animationState) return;
+  const handlePlayCards = (cardsToPlay: CardType[] = selectedCards) => {
+    if (!gameState || !gameState.isPlayerTurn || cardsToPlay.length === 0 || animationState) return;
     const player = gameState.players.find(p => !p.isAI)!;
 
     if (isInitialPlay) {
-        if (selectedCards.length > 0 && (selectedCards[0].rank === Rank.Two || selectedCards[0].rank === Rank.Ten)) {
+        if (cardsToPlay.length > 0 && (cardsToPlay[0].rank === Rank.Two || cardsToPlay[0].rank === Rank.Ten)) {
             setIsInvalidPlay(true);
             setTimeout(() => setIsInvalidPlay(false), 500);
             setSelectedCards([]);
@@ -715,7 +685,7 @@ const App: React.FC = () => {
 
         const aiPlayer = gameState.players.find(p => p.isAI)!;
         const aiChoice = getAIStartingCard(aiPlayer);
-        const playerChoice = selectedCards;
+        const playerChoice = cardsToPlay;
 
         const playerWins = aiChoice.length === 0 || playerChoice[0].value <= aiChoice[0].value;
         
@@ -765,7 +735,7 @@ const App: React.FC = () => {
 
     const targetCard = gameState.mpa.length > 0 ? gameState.mpa[gameState.mpa.length - 1] : undefined;
 
-    if (!isValidPlay(selectedCards, targetCard, player)) {
+    if (!isValidPlay(cardsToPlay, targetCard, player)) {
       setIsInvalidPlay(true);
       setTimeout(() => setIsInvalidPlay(false), 500);
       setSelectedCards([]);
@@ -779,8 +749,8 @@ const App: React.FC = () => {
             if (p.id === player.id) {
                 return {
                     ...p,
-                    hand: p.hand.filter(c => !selectedCards.some(sc => sc.id === c.id)),
-                    lastChance: p.lastChance.filter(c => !selectedCards.some(sc => sc.id === c.id))
+                    hand: p.hand.filter(c => !cardsToPlay.some(sc => sc.id === c.id)),
+                    lastChance: p.lastChance.filter(c => !cardsToPlay.some(sc => sc.id === c.id))
                 };
             }
             return p;
@@ -788,7 +758,7 @@ const App: React.FC = () => {
         return { ...prev, players: newPlayers };
     });
 
-    initiatePlayAnimation(selectedCards, player);
+    initiatePlayAnimation(cardsToPlay, player);
     setSelectedCards([]);
   };
   

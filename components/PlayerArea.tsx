@@ -278,33 +278,20 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                                 data={{ type: 'hand-card', index: index, card: card }} // Keep original index in data
                                 disabled={!isPlayer || isDisabled || (!isCurrentPlayer && currentStage !== GameStage.SWAP)}
                                 className={`absolute bottom-0 transition-all duration-200 ease-out hover:-translate-y-8 hover:z-[100] ${hiddenCardIds.has(card.id) ? 'opacity-0' : 'opacity-100'}`}
+                                style={{
+                                    left: `${leftPos}px`,
+                                    zIndex: currentVisualIndex,
+                                    width: window.innerWidth >= 768 ? LAYOUT_CONSTANTS.CARD_WIDTH_MD : LAYOUT_CONSTANTS.CARD_WIDTH_SM
+                                }}
                             >
-                                <div
-                                    style={{
-                                        // We apply the positioning here to the inner div, or the DraggableCard style?
-                                        // DraggableCard applies style prop to the wrapper.
-                                        // Since DraggableCard uses transform for drag, and we use left for layout...
-                                        // We should probably set 'left' on the wrapper?
-                                        // Wait, DraggableCard wrapper accepts style from useDraggable which includes translate.
-                                        // If we set 'left' here, it works with 'translate'.
-                                        // BUT: DraggableCard logic I wrote uses `style={transform...}`.
-                                        // I should pass the position via style prop or className?
-                                        // The wrapper is absolute positioned.
-                                        position: 'absolute',
-                                        left: `${leftPos}px`,
-                                        zIndex: currentVisualIndex,
-                                        width: window.innerWidth >= 768 ? LAYOUT_CONSTANTS.CARD_WIDTH_MD : LAYOUT_CONSTANTS.CARD_WIDTH_SM
-                                    }}
-                                >
-                                    <Card
-                                        card={card}
-                                        isFaceUp={isPlayer}
-                                        isSelected={isPlayer && selectedCards.some(sc => sc.id === card.id)}
-                                        onClick={isPlayer && (currentStage === GameStage.SWAP || isCurrentPlayer) ? () => onCardSelect(card) : undefined}
-                                        isDisabled={isDisabled}
-                                        difficulty={difficulty}
-                                    />
-                                </div>
+                                <Card
+                                    card={card}
+                                    isFaceUp={isPlayer}
+                                    isSelected={isPlayer && selectedCards.some(sc => sc.id === card.id)}
+                                    onClick={isPlayer && (currentStage === GameStage.SWAP || isCurrentPlayer) ? () => onCardSelect(card) : undefined}
+                                    isDisabled={isDisabled}
+                                    difficulty={difficulty}
+                                />
                             </DraggableCard>
                         );
                     })}
