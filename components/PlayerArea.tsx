@@ -11,7 +11,7 @@ interface PlayerAreaProps {
   selectedCards: CardType[];
   onCardSelect: (card: CardType) => void;
   onLastStandCardSelect?: (card: CardType, index: number) => void;
-  isPlayer: boolean;
+  position: 'top' | 'bottom' | 'left' | 'right';
   currentStage: GameStage;
   hiddenCardIds: Set<string>;
   playerHandRef?: React.RefObject<HTMLDivElement>;
@@ -24,7 +24,8 @@ interface PlayerAreaProps {
   handReorderPreview?: { id: string, newIndex: number } | null;
 }
 
-const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, selectedCards, onCardSelect, onLastStandCardSelect, isPlayer, currentStage, hiddenCardIds, playerHandRef, lastStandRef, lastChanceRef, cardTableRef, isInitialPlay = false, difficulty, activeDragId, handReorderPreview }) => {
+const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, selectedCards, onCardSelect, onLastStandCardSelect, position, currentStage, hiddenCardIds, playerHandRef, lastStandRef, lastChanceRef, cardTableRef, isInitialPlay = false, difficulty, activeDragId, handReorderPreview }) => {
+  const isHuman = position === 'bottom';
   const handContainerRef = useRef<HTMLDivElement>(null);
   const [handLayout, setHandLayout] = useState({
     cardSpacing: 0,
@@ -35,7 +36,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
   // This effect calculates how hand cards should be spaced
   useEffect(() => {
     const calculateLayout = () => {
-      if (!isPlayer || !handContainerRef.current || player.hand.length <= 0) {
+      if (!isHuman || !handContainerRef.current || player.hand.length <= 0) {
         return;
       }
       
@@ -75,12 +76,12 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
       clearTimeout(timeoutId);
       window.removeEventListener('resize', calculateLayout);
     };
-  }, [isPlayer, player.hand.length]);
+  }, [isHuman, player.hand.length]);
   
-  const typePrefix = isPlayer ? 'player' : 'opponent';
+  const typePrefix = isHuman ? 'player' : 'opponent';
 
   // Opponent's Consolidated View
-  if (!isPlayer) {
+  if (!isHuman) {
     const handCardCount = player.hand.length;
     // Cap visual cards at 3 for opponent
     const handVisualCount = Math.min(handCardCount, 3);
@@ -102,62 +103,109 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
         </div>
     ));
 
-    return (
-        <div className="flex justify-center items-end w-full max-w-4xl px-4 md:px-8">
-            {/* Center Group: Table Cards (LC + LS) aligned with Board */}
-            <div ref={cardTableRef} className="relative flex space-x-2 md:space-x-4">
+    if (position === 'top') {
+      return (
+          <div className="player-area flex justify-center items-end w-full max-w-4xl px-4 md:px-8">
+              {/* Center Group: Table Cards (LC + LS) aligned with Board */}
+              <div ref={cardTableRef} className="relative flex space-x-2 md:space-x-4">
 
-                 {/* Opponent Hand (Attached to the left of the group) */}
-                 <div
-                    ref={playerHandRef}
-                    id={`${typePrefix}-hand-container`}
-                    className="absolute top-0 right-full w-20 h-28 md:w-24 md:h-36 mr-4 md:mr-8"
-                 >
-                    <div className="relative w-full h-full">
-                        {handCardCount > 0 && handCards}
-                        {handCardCount > 0 && (
-                            <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
-                                {handCardCount}
-                            </div>
-                        )}
-                    </div>
-                 </div>
+                   {/* Opponent Hand (Attached to the left of the group) */}
+                   <div
+                      ref={playerHandRef}
+                      id={`${typePrefix}-hand-container`}
+                      className="absolute top-0 right-full w-20 h-28 md:w-24 md:h-36 mr-4 md:mr-8"
+                   >
+                      <div className="relative w-full h-full">
+                          {handCardCount > 0 && handCards}
+                          {handCardCount > 0 && (
+                              <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
+                                  {handCardCount}
+                              </div>
+                          )}
+                      </div>
+                   </div>
 
-                 {/* 3 Columns corresponding to LC slots */}
-                 {[0, 1, 2].map(i => (
-                    <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
-                        {/* Last Stand (Bottom/Behind) */}
-                        <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-1 left-1 md:top-2 md:left-2 z-0">
-                             {player.lastStand[i] && (
-                                <Card
-                                    card={player.lastStand[i]}
-                                    isFaceUp={false}
-                                    difficulty={difficulty}
-                                />
-                             )}
-                        </div>
-                         {/* Last Chance (Top/Front) */}
-                        <div ref={lastChanceRef} id={`${typePrefix}-lc-slot-${i}`} className="absolute inset-0 z-10">
-                            {player.lastChance[i] && (
-                                <Card
-                                    card={player.lastChance[i]}
-                                    isFaceUp={true}
-                                    difficulty={difficulty}
-                                />
-                            )}
-                        </div>
-                    </div>
-                 ))}
+                   {/* 3 Columns corresponding to LC slots */}
+                   {[0, 1, 2].map(i => (
+                      <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
+                          {/* Last Stand (Bottom/Behind) */}
+                          <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-1 left-1 md:top-2 md:left-2 z-0">
+                               {player.lastStand[i] && (
+                                  <Card
+                                      card={player.lastStand[i]}
+                                      isFaceUp={false}
+                                      difficulty={difficulty}
+                                  />
+                               )}
+                          </div>
+                           {/* Last Chance (Top/Front) */}
+                          <div ref={lastChanceRef} id={`${typePrefix}-lc-slot-${i}`} className="absolute inset-0 z-10">
+                              {player.lastChance[i] && (
+                                  <Card
+                                      card={player.lastChance[i]}
+                                      isFaceUp={true}
+                                      difficulty={difficulty}
+                                  />
+                              )}
+                          </div>
+                      </div>
+                   ))}
+              </div>
+          </div>
+      );
+    } else {
+      // Vertical layout for left/right players
+      const isLeft = position === 'left';
+      return (
+        <div className={`player-area flex flex-col items-center justify-center w-48 h-full p-4 ${isLeft ? 'mr-auto' : 'ml-auto'}`}>
+          <div ref={cardTableRef} className="relative flex flex-col space-y-2 md:space-y-4">
+            <div
+              ref={playerHandRef}
+              id={`${typePrefix}-hand-container`}
+              className="absolute top-0 right-full w-28 h-20 md:w-36 md:h-24 mr-4 md:mr-8"
+            >
+              <div className="relative w-full h-full">
+                {handCardCount > 0 && handCards}
+                {handCardCount > 0 && (
+                  <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
+                    {handCardCount}
+                  </div>
+                )}
+              </div>
             </div>
+            {[0, 1, 2].map(i => (
+              <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-28 h-20 md:w-36 md:h-24 transform rotate-90">
+                <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-1 left-1 md:top-2 md:left-2 z-0">
+                  {player.lastStand[i] && (
+                    <Card
+                      card={player.lastStand[i]}
+                      isFaceUp={false}
+                      difficulty={difficulty}
+                    />
+                  )}
+                </div>
+                <div ref={lastChanceRef} id={`${typePrefix}-lc-slot-${i}`} className="absolute inset-0 z-10">
+                  {player.lastChance[i] && (
+                    <Card
+                      card={player.lastChance[i]}
+                      isFaceUp={true}
+                      difficulty={difficulty}
+                    />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-    );
+      );
+    }
   }
 
   // Player's View
-  const isInLastStand = isPlayer && isCurrentPlayer && player.hand.length === 0 && player.lastChance.length === 0;
+  const isInLastStand = isHuman && isCurrentPlayer && player.hand.length === 0 && player.lastChance.length === 0;
 
   return (
-    <div className="flex flex-col items-center w-full max-w-4xl px-4 md:px-8">
+    <div className="player-area flex flex-col items-center w-full max-w-4xl px-4 md:px-8">
       
       {/* Table Cards Area (LC + LS) */}
       <div className="flex justify-center items-end w-full">
@@ -181,7 +229,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                         {/* Last Chance (Top/Front) */}
                     <div ref={lastChanceRef} id={`${typePrefix}-lc-slot-${i}`} className={`absolute inset-0 z-10 ${player.lastChance.length === 0 ? 'pointer-events-none' : ''}`}>
                         {player.lastChance[i] ? (
-                            isPlayer && currentStage === GameStage.SWAP ? (
+                            isHuman && currentStage === GameStage.SWAP ? (
                                 <DraggableCard
                                     id={`lc-card-${player.lastChance[i].id}`}
                                     data={{ type: 'lc-card', index: i, card: player.lastChance[i] }}
@@ -190,8 +238,8 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                                     <Card
                                         card={player.lastChance[i]}
                                         isFaceUp={true}
-                                        isSelected={isPlayer && selectedCards.some(sc => sc.id === player.lastChance[i].id)}
-                                        onClick={isPlayer && currentStage === GameStage.SWAP ? () => onCardSelect(player.lastChance[i]) : undefined}
+                                        isSelected={isHuman && selectedCards.some(sc => sc.id === player.lastChance[i].id)}
+                                        onClick={isHuman && currentStage === GameStage.SWAP ? () => onCardSelect(player.lastChance[i]) : undefined}
                                         difficulty={difficulty}
                                     />
                                 </DraggableCard>
@@ -199,9 +247,9 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                                 <Card
                                     card={player.lastChance[i]}
                                     isFaceUp={true}
-                                    isSelected={isPlayer && selectedCards.some(sc => sc.id === player.lastChance[i].id)}
+                                    isSelected={isHuman && selectedCards.some(sc => sc.id === player.lastChance[i].id)}
                                     onClick={
-                                    isPlayer && (
+                                    isHuman && (
                                         (isCurrentPlayer && currentStage === GameStage.PLAY && player.hand.length === 0)
                                     ) ? () => onCardSelect(player.lastChance[i]) : undefined
                                     }
@@ -211,7 +259,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                         ) : null}
                     </div>
                     {/* Make the LC slot droppable during SWAP */}
-                    {isPlayer && currentStage === GameStage.SWAP && (
+                    {isHuman && currentStage === GameStage.SWAP && (
                          <DroppableArea
                             id={`lc-slot-${i}`}
                             data={{ type: 'lc-slot', index: i }}
@@ -242,7 +290,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
 
                         // Visual reordering logic
                         let visualList = [...player.hand];
-                        if (handReorderPreview && isPlayer) {
+                        if (handReorderPreview && isHuman) {
                              const draggedIndex = visualList.findIndex(c => c.id === handReorderPreview.id);
                              if (draggedIndex > -1) {
                                  const [item] = visualList.splice(draggedIndex, 1);
@@ -264,8 +312,8 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                                 key={card.id}
                                 id={card.id}
                                 data={{ type: 'hand-card', index: index, card: card }} // Keep original index in data
-                                droppableData={isPlayer ? { type: 'hand-card', index: index } : undefined}
-                                disabled={!isPlayer || isDisabled || (!isCurrentPlayer && currentStage !== GameStage.SWAP)}
+                                droppableData={isHuman ? { type: 'hand-card', index: index } : undefined}
+                                disabled={!isHuman || isDisabled || (!isCurrentPlayer && currentStage !== GameStage.SWAP)}
                                 className={`absolute bottom-0 transition-all duration-200 ease-out hover:-translate-y-8 hover:z-[100] ${hiddenCardIds.has(card.id) ? 'opacity-0' : 'opacity-100'}`}
                                 style={{
                                     left: `${leftPos}px`,
@@ -275,9 +323,9 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                             >
                                 <Card
                                     card={card}
-                                    isFaceUp={isPlayer}
-                                    isSelected={isPlayer && selectedCards.some(sc => sc.id === card.id)}
-                                    onClick={isPlayer && (currentStage === GameStage.SWAP || isCurrentPlayer) ? () => onCardSelect(card) : undefined}
+                                    isFaceUp={isHuman}
+                                    isSelected={isHuman && selectedCards.some(sc => sc.id === card.id)}
+                                    onClick={isHuman && (currentStage === GameStage.SWAP || isCurrentPlayer) ? () => onCardSelect(card) : undefined}
                                     isDisabled={isDisabled}
                                     difficulty={difficulty}
                                 />

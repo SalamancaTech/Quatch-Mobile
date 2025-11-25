@@ -10,6 +10,7 @@ import GameOverModal from './components/GameMessage';
 import DifficultyModal from './components/DifficultyModal';
 import GameRulesModal from './components/GameRulesModal';
 import EditNamesModal from './components/EditNamesModal';
+import NumberOfPlayersModal from './components/NumberOfPlayersModal';
 import StatisticsModal from './components/StatisticsModal';
 import { LAYOUT_CONSTANTS } from './constants';
 import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, TouchSensor, DragEndEvent, DragStartEvent, DragOverEvent } from '@dnd-kit/core';
@@ -103,7 +104,9 @@ const App: React.FC = () => {
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isEditNamesModalOpen, setIsEditNamesModalOpen] = useState(false);
   const [isStatisticsModalOpen, setIsStatisticsModalOpen] = useState(false);
-  const [playerNames, setPlayerNames] = useState({ player1: 'Player 1', opponent: 'Opponent' });
+  const [isNumPlayersModalOpen, setIsNumPlayersModalOpen] = useState(false);
+  const [numOpponents, setNumOpponents] = useState(1);
+  const [playerNames, setPlayerNames] = useState<string[]>(['Player 1', 'Opponent 1', 'Opponent 2', 'Opponent 3']);
 
   // DND State
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -345,8 +348,20 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    setGameState(initializeGame(playerNames.player1, playerNames.opponent));
-  }, []);
+    const handleResize = () => {
+      if (window.innerWidth < 720 && numOpponents !== 1) {
+        setNumOpponents(1);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, [numOpponents]);
+
+  useEffect(() => {
+    const initialPlayerNames = playerNames.slice(0, numOpponents + 1);
+    setGameState(initializeGame(initialPlayerNames));
+  }, [numOpponents]);
 
   useEffect(() => {
     if (!gameState || gameState.mpa.length < 2) {
@@ -683,52 +698,43 @@ const App: React.FC = () => {
             return;
         }
 
-        const aiPlayer = gameState.players.find(p => p.isAI)!;
-        const aiChoice = getAIStartingCard(aiPlayer);
-        const playerChoice = cardsToPlay;
+        const aiChoices = aiPlayers.map(ai => ({ player: ai, cards: getAIStartingCard(ai) }));
+        const bestAiChoice = aiChoices.reduce((best, current) => {
+            if (!best.cards || best.cards.length === 0) return current;
+            if (!current.cards || current.cards.length === 0) return best;
+            if (current.cards[0].value < best.cards[0].value) return current;
+            return best;
+        }, { player: aiPlayers[0], cards: [] as CardType[] });
 
-        const playerWins = aiChoice.length === 0 || playerChoice[0].value <= aiChoice[0].value;
-        
-        setSelectedCards([]); // Clear selection regardless of outcome for the player.
-        setIsInitialPlay(false); // Turn off the flag immediately.
+        const playerChoice = cardsToPlay;
+        const playerWins = !bestAiChoice.cards || bestAiChoice.cards.length === 0 || playerChoice[0].value <= bestAiChoice.cards[0].value;
+
+        setSelectedCards([]);
+        setIsInitialPlay(false);
 
         if (playerWins) {
             setSpecialMessage({ text: "You go first!", type: 'event' });
-            
-            // Player's turn continues. Remove cards from player state and animate
             setGameState(prev => {
                 if (!prev) return null;
                 return {
                     ...prev,
-                    players: prev.players.map(p => {
-                        if (p.id === player.id) {
-                            return { ...p, hand: p.hand.filter(c => !playerChoice.some(sc => sc.id === c.id)) };
-                        }
-                        return p;
-                    })
+                    players: prev.players.map(p => p.id === player.id ? { ...p, hand: p.hand.filter(c => !playerChoice.some(sc => sc.id === c.id)) } : p)
                 };
             });
             initiatePlayAnimation(playerChoice, player);
         } else { // AI wins
-            setSpecialMessage({ text: `${aiPlayer.name} goes first!`, type: 'event' });
-            
-            // AI plays its cards.
-            // Remove cards from AI state and animate
+            const winningAI = bestAiChoice.player;
+            setSpecialMessage({ text: `${winningAI.name} goes first!`, type: 'event' });
             setGameState(prev => {
                 if (!prev) return null;
                 return {
                     ...prev,
-                    currentPlayerId: aiPlayer.id,
+                    currentPlayerId: winningAI.id,
                     isPlayerTurn: false,
-                    players: prev.players.map(p => {
-                        if (p.id === aiPlayer.id) {
-                            return { ...p, hand: p.hand.filter(c => !aiChoice.some(sc => sc.id === c.id)) };
-                        }
-                        return p;
-                    })
+                    players: prev.players.map(p => p.id === winningAI.id ? { ...p, hand: p.hand.filter(c => !bestAiChoice.cards!.some(sc => sc.id === c.id)) } : p)
                 };
             });
-            initiatePlayAnimation(aiChoice, aiPlayer);
+            initiatePlayAnimation(bestAiChoice.cards!, winningAI);
         }
         return;
     }
@@ -1030,7 +1036,8 @@ const App: React.FC = () => {
   }
 
   const handleResetGame = () => {
-    setGameState(initializeGame(playerNames.player1, playerNames.opponent));
+    const initialPlayerNames = playerNames.slice(0, numOpponents + 1);
+    setGameState(initializeGame(initialPlayerNames));
     setSelectedCards([]);
     setIsInvalidPlay(false);
     setAnimationState(null);
@@ -1054,20 +1061,21 @@ const App: React.FC = () => {
     handleResetGame();
   };
 
-  const handleSaveNames = (newNames: { player1: string; opponent: string }) => {
-    const finalNames = {
-      player1: newNames.player1.trim() || 'Player 1',
-      opponent: newNames.opponent.trim() || 'Opponent'
-    };
+  const handleSelectNumOpponents = (num: number) => {
+    setNumOpponents(num);
+    setIsNumPlayersModalOpen(false);
+    handleResetGame();
+  };
+
+  const handleSaveNames = (newNames: string[]) => {
+    const finalNames = newNames.map((name, index) => name.trim() || (index === 0 ? 'Player 1' : `Opponent ${index}`));
     setPlayerNames(finalNames);
     setGameState(prev => {
       if (!prev) return null;
-      const newPlayers = prev.players.map(p => {
-        if (p.isAI) {
-          return { ...p, name: finalNames.opponent };
-        }
-        return { ...p, name: finalNames.player1 };
-      });
+      const newPlayers = prev.players.map((p, index) => ({
+        ...p,
+        name: finalNames[p.id],
+      }));
       return { ...prev, players: newPlayers };
     });
     setIsEditNamesModalOpen(false);
@@ -1171,7 +1179,22 @@ const App: React.FC = () => {
   }
 
   const humanPlayer = gameState.players.find(p => !p.isAI)!;
-  const aiPlayer = gameState.players.find(p => p.isAI)!;
+  const aiPlayers = gameState.players.filter(p => p.isAI);
+
+  let topPlayer: Player | undefined;
+  let leftPlayer: Player | undefined;
+  let rightPlayer: Player | undefined;
+
+  if (numOpponents === 1) {
+    topPlayer = aiPlayers[0];
+  } else if (numOpponents === 2) {
+    leftPlayer = aiPlayers[0];
+    rightPlayer = aiPlayers[1];
+  } else if (numOpponents === 3) {
+    leftPlayer = aiPlayers[0];
+    topPlayer = aiPlayers[1];
+    rightPlayer = aiPlayers[2];
+  }
 
   const eatenCardsForCompletion = eatAnimationState?.map(item => item.card);
 
@@ -1211,15 +1234,37 @@ const App: React.FC = () => {
   return (
     <div className="game-board-bg min-h-screen flex flex-col overflow-hidden relative">
       
-      {/* Sticky Opponent Name Bar */}
-      <div className="fixed top-0 left-0 right-0 h-10 flex items-center justify-center z-50 pointer-events-none">
-          <span
-            className="text-yellow-400 font-bold text-xl uppercase tracking-wider drop-shadow-lg"
-            style={{ textShadow: '0 0 10px rgba(250, 204, 21, 0.6), 2px 2px 4px rgba(0,0,0,0.8)' }}
-          >
-            {aiPlayer.name}
-          </span>
-      </div>
+      {/* Player Name Tags */}
+      {gameState.players.map(p => {
+        const isHuman = p.id === 0;
+        let positionClasses = '';
+        let textOrientation = '';
+        if (isHuman) {
+          positionClasses = 'bottom-0 left-1/2 -translate-x-1/2';
+        } else {
+          const playerPosition = topPlayer?.id === p.id ? 'top' : leftPlayer?.id === p.id ? 'left' : 'right';
+          if (playerPosition === 'top') {
+            positionClasses = 'top-0 left-1/2 -translate-x-1/2';
+          } else if (playerPosition === 'left') {
+            positionClasses = 'top-1/2 left-0 -translate-y-1/2';
+            textOrientation = 'transform -rotate-90';
+          } else { // right
+            positionClasses = 'top-1/2 right-0 -translate-y-1/2';
+            textOrientation = 'transform rotate-90';
+          }
+        }
+
+        return (
+          <div key={p.id} className={`fixed ${positionClasses} h-10 flex items-center justify-center z-50 pointer-events-none`}>
+            <span
+              className={`text-yellow-400 font-bold text-xl uppercase tracking-wider drop-shadow-lg ${textOrientation}`}
+              style={{ textShadow: '0 0 10px rgba(250, 204, 21, 0.6), 2px 2px 4px rgba(0,0,0,0.8)' }}
+            >
+              {p.name}
+            </span>
+          </div>
+        );
+      })}
 
       <div className="flex-grow flex flex-col justify-center items-center py-12 px-2">
         <div 
@@ -1254,6 +1299,7 @@ const App: React.FC = () => {
             {isMenuOpen && (
             <div className="absolute top-12 right-0 bg-gray-800 rounded-lg shadow-xl py-2 w-56">
                 <button onClick={handleResetGame} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">New Game</button>
+                <button onClick={() => { setIsNumPlayersModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Number of Opponents</button>
                 <button onClick={() => { setIsDifficultyModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Change Difficulty</button>
                 <button onClick={() => { setIsEditNamesModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Edit Names</button>
                 <button onClick={() => { setIsRulesModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Game Rules</button>
@@ -1280,13 +1326,21 @@ const App: React.FC = () => {
             />
         )}
 
+        {isNumPlayersModalOpen && (
+            <NumberOfPlayersModal
+                onSelect={handleSelectNumOpponents}
+                onClose={() => setIsNumPlayersModalOpen(false)}
+            />
+        )}
+
         {isRulesModalOpen && (
             <GameRulesModal onClose={() => setIsRulesModalOpen(false)} />
         )}
 
         {isEditNamesModalOpen && (
             <EditNamesModal
-            currentNames={{ player1: humanPlayer.name, opponent: aiPlayer.name }}
+            currentNames={playerNames}
+            numOpponents={numOpponents}
             onSave={handleSaveNames}
             onClose={() => setIsEditNamesModalOpen(false)}
             />
@@ -1296,7 +1350,7 @@ const App: React.FC = () => {
             <StatisticsModal
                 gameState={gameState}
                 humanPlayer={humanPlayer}
-                aiPlayer={aiPlayer}
+                aiPlayers={aiPlayers}
                 difficulty={difficulty}
                 onClose={() => setIsStatisticsModalOpen(false)}
             />
@@ -1394,25 +1448,55 @@ const App: React.FC = () => {
             onDragEnd={handleDragEnd}
         >
         {/* --- Main Game Grid --- */}
-        <div className="flex flex-col items-center gap-4 w-full max-w-4xl">
-            {/* Opponent's Area */}
-            <PlayerArea
-                player={aiPlayer}
-                isCurrentPlayer={gameState.currentPlayerId === aiPlayer.id}
+        <div className="relative w-full h-full flex items-center justify-center">
+          <div className="absolute top-0">
+            {topPlayer && (
+              <PlayerArea
+                player={topPlayer}
+                isCurrentPlayer={gameState.currentPlayerId === topPlayer.id}
                 selectedCards={[]}
                 onCardSelect={() => {}}
                 isPlayer={false}
                 currentStage={gameState.stage}
                 hiddenCardIds={hiddenCardIds}
-                playerHandRef={opponentHandRef}
-                lastStandRef={opponentLastStandRef}
-                lastChanceRef={opponentLastChanceRef}
-                cardTableRef={opponentCardTableRef}
                 difficulty={difficulty}
-            />
+                position="top"
+              />
+            )}
+          </div>
+          <div className="absolute left-0">
+            {leftPlayer && (
+              <PlayerArea
+                player={leftPlayer}
+                isCurrentPlayer={gameState.currentPlayerId === leftPlayer.id}
+                selectedCards={[]}
+                onCardSelect={() => {}}
+                isPlayer={false}
+                currentStage={gameState.stage}
+                hiddenCardIds={hiddenCardIds}
+                difficulty={difficulty}
+                position="left"
+              />
+            )}
+          </div>
+          <div className="absolute right-0">
+            {rightPlayer && (
+              <PlayerArea
+                player={rightPlayer}
+                isCurrentPlayer={gameState.currentPlayerId === rightPlayer.id}
+                selectedCards={[]}
+                onCardSelect={() => {}}
+                isPlayer={false}
+                currentStage={gameState.stage}
+                hiddenCardIds={hiddenCardIds}
+                difficulty={difficulty}
+                position="right"
+              />
+            )}
+          </div>
 
-            {/* Game Board Wrapper */}
-            <div className="flex-grow flex flex-col items-center justify-center">
+          {/* Game Board Wrapper */}
+          <div className="flex-grow flex flex-col items-center justify-center">
                 {gameState.stage === GameStage.SWAP && (
                     <button
                     onClick={handleStartGame}
@@ -1451,6 +1535,7 @@ const App: React.FC = () => {
                         player={humanPlayer}
                         isCurrentPlayer={gameState.currentPlayerId === humanPlayer.id}
                         selectedCards={selectedCards}
+                        position="bottom"
                         onCardSelect={handleCardSelect}
                         onLastStandCardSelect={handleLastStandCardSelect}
                         isPlayer={true}
@@ -1506,21 +1591,12 @@ const App: React.FC = () => {
         </DndContext>
       </div>
 
-      {/* Sticky Player Name Bar */}
-      <div className="fixed bottom-0 left-0 right-0 h-10 flex items-center justify-center z-50 pointer-events-none">
-          <span
-            className="text-yellow-400 font-bold text-xl uppercase tracking-wider drop-shadow-lg"
-            style={{ textShadow: '0 0 10px rgba(250, 204, 21, 0.6), 2px 2px 4px rgba(0,0,0,0.8)' }}
-          >
-            {humanPlayer.name}
-          </span>
-      </div>
 
       {gameState.stage === GameStage.GAME_OVER && gameState.winner && (
           <GameOverModal
             winner={gameState.winner}
             humanPlayer={humanPlayer}
-            aiPlayer={aiPlayer}
+            aiPlayers={aiPlayers}
             turnCount={gameState.turnCount}
             gameDuration={Math.round((Date.now() - gameState.gameStartTime) / 1000)}
             difficulty={difficulty}
