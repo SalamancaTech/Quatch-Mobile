@@ -1468,9 +1468,12 @@ const App: React.FC = () => {
                 </DroppableArea>
             </div>
         </div>
-        <DragOverlay>
+        <DragOverlay dropAnimation={{
+            duration: 250,
+            easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+        }}>
             {activeDragId && (
-                <div className="opacity-90 scale-105 cursor-grabbing" style={{ touchAction: 'none' }}>
+                <div className="opacity-100 scale-110 cursor-grabbing shadow-2xl rounded-lg" style={{ touchAction: 'none', transform: 'rotate(3deg)' }}>
                     {activeDragId === 'mpa-stack' ? (
                        <div className="relative w-20 h-28 md:w-24 md:h-36">
                           {gameState.mpa.slice(-3).map((card, index) => (

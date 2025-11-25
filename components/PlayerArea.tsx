@@ -104,20 +104,25 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
 
     return (
         <div className="flex justify-center items-end w-full max-w-4xl px-4 md:px-8">
-            {/* Left Column: Opponent Hand */}
-            <div ref={playerHandRef} id={`${typePrefix}-hand-container`} className="relative w-20 h-28 md:w-24 md:h-36 mr-4 md:mr-8 flex-shrink-0">
-                <div className="relative w-full h-full">
-                    {handCardCount > 0 && handCards}
-                    {handCardCount > 0 && (
-                        <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
-                            {handCardCount}
-                        </div>
-                    )}
-                </div>
-            </div>
+            {/* Center Group: Table Cards (LC + LS) aligned with Board */}
+            <div ref={cardTableRef} className="relative flex space-x-2 md:space-x-4">
 
-            {/* Right Group: Table Cards (LC + LS) */}
-            <div ref={cardTableRef} className="flex space-x-2 md:space-x-4">
+                 {/* Opponent Hand (Attached to the left of the group) */}
+                 <div
+                    ref={playerHandRef}
+                    id={`${typePrefix}-hand-container`}
+                    className="absolute top-0 right-full w-20 h-28 md:w-24 md:h-36 mr-4 md:mr-8"
+                 >
+                    <div className="relative w-full h-full">
+                        {handCardCount > 0 && handCards}
+                        {handCardCount > 0 && (
+                            <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
+                                {handCardCount}
+                            </div>
+                        )}
+                    </div>
+                 </div>
+
                  {/* 3 Columns corresponding to LC slots */}
                  {[0, 1, 2].map(i => (
                     <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
@@ -156,8 +161,6 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
       
       {/* Table Cards Area (LC + LS) */}
       <div className="flex justify-center items-end w-full">
-         {/* Ghost Left Column for Alignment (matches Opponent Hand width+margin) */}
-         <div className="relative w-20 h-28 md:w-24 md:h-36 mr-4 md:mr-8 flex-shrink-0 opacity-0 pointer-events-none"></div>
 
          <div ref={cardTableRef} className="flex space-x-2 md:space-x-4 mb-4 md:mb-8 pointer-events-auto">
             {/* 3 Columns corresponding to LC slots */}
@@ -237,29 +240,10 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                     {player.hand.map((card, index) => {
                         const isDisabled = isInitialPlay && (card.rank === Rank.Two || card.rank === Rank.Ten);
 
-                        // Calculate position based on spacing
-                        const totalWidth = handLayout.totalWidth;
-                        const startX = (handContainerRef.current?.offsetWidth || 0) / 2 - totalWidth / 2;
-
                         // Visual reordering logic
-                        let visualIndex = index;
-                        // If we are dragging this card, we hide it (DraggableCard handles opacity).
-                        // If we are dragging another card and hovering here, we shift.
-                        // However, DraggableCard with manual positioning needs careful update.
-
-                        // Logic:
-                        // If I am dragging Card A (index 2)
-                        // And I hover over Card B (index 0)
-                        // The preview state says: { id: CardA, newIndex: 0 }
-                        // So visually:
-                        // Index 0 should display Card A (the dragged one)? No, usually we just open a gap.
-                        // Or we render the list in the *previewed* order.
-
-                        // Let's create a temporary visual list order.
                         let visualList = [...player.hand];
                         if (handReorderPreview && isPlayer) {
-                             const draggedIndex = visualList.findIndex(c => c.id === handReorderPreview.id); // actually activeDragId might be better
-                             // We know activeDragId is the ID.
+                             const draggedIndex = visualList.findIndex(c => c.id === handReorderPreview.id);
                              if (draggedIndex > -1) {
                                  const [item] = visualList.splice(draggedIndex, 1);
                                  visualList.splice(handReorderPreview.newIndex, 0, item);
@@ -269,6 +253,10 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                         // Find where 'card' is in the visual list
                         const currentVisualIndex = visualList.findIndex(c => c.id === card.id);
 
+                        // Calculate position based on spacing
+                        const totalWidth = handLayout.totalWidth;
+                        const startX = (handContainerRef.current?.offsetWidth || 0) / 2 - totalWidth / 2;
+
                         const leftPos = startX + currentVisualIndex * handLayout.cardSpacing;
 
                         return (
@@ -276,6 +264,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                                 key={card.id}
                                 id={card.id}
                                 data={{ type: 'hand-card', index: index, card: card }} // Keep original index in data
+                                droppableData={isPlayer ? { type: 'hand-card', index: index } : undefined}
                                 disabled={!isPlayer || isDisabled || (!isCurrentPlayer && currentStage !== GameStage.SWAP)}
                                 className={`absolute bottom-0 transition-all duration-200 ease-out hover:-translate-y-8 hover:z-[100] ${hiddenCardIds.has(card.id) ? 'opacity-0' : 'opacity-100'}`}
                                 style={{

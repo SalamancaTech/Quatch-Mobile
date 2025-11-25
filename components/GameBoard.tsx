@@ -147,12 +147,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaCl
       {/* The row containing board elements aligned to match PlayerArea grid */}
       <div className="flex justify-center items-end w-full">
 
-         {/* Left Column: Ghost (Matches Opponent Hand position) */}
-         <div className="relative w-20 h-28 md:w-24 md:h-36 mr-4 md:mr-8 flex-shrink-0 flex items-center justify-center opacity-0 pointer-events-none">
-             {/* Empty ghost slot to maintain grid alignment */}
-         </div>
-
-         {/* Right Group: Bin, MPA, Deck (Aligns with Slots 0, 1, 2) */}
+         {/* Center Group: Bin, MPA, Deck (Aligns with Slots 0, 1, 2) */}
          <div className="flex space-x-2 md:space-x-4">
               {/* Slot 0: Bin */}
               <div className="relative w-20 h-28 md:w-24 md:h-36 flex items-center justify-center">
