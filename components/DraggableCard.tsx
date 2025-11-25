@@ -8,9 +8,10 @@ interface DraggableCardProps {
   children: React.ReactNode;
   disabled?: boolean;
   className?: string;
+  style?: React.CSSProperties;
 }
 
-export const DraggableCard: React.FC<DraggableCardProps> = ({ id, data, children, disabled = false, className = '' }) => {
+export const DraggableCard: React.FC<DraggableCardProps> = ({ id, data, children, disabled = false, className = '', style: propStyle }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id,
     data,
@@ -18,8 +19,9 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({ id, data, children
   });
 
   const style: React.CSSProperties = {
-    transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0 : 1, // Hide the original element while dragging (the overlay will show it)
+    ...propStyle,
+    transform: CSS.Translate.toString(transform) || propStyle?.transform,
+    opacity: isDragging ? 0 : (propStyle?.opacity !== undefined ? propStyle.opacity : 1),
     touchAction: 'none', // Important for pointer events
     cursor: disabled ? 'default' : 'grab',
   };
