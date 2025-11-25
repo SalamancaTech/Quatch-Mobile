@@ -1212,8 +1212,13 @@ const App: React.FC = () => {
     <div className="game-board-bg min-h-screen flex flex-col overflow-hidden relative">
       
       {/* Sticky Opponent Name Bar */}
-      <div className="fixed top-0 left-0 right-0 h-10 bg-yellow-400 shadow-md flex items-center justify-center z-50">
-          <span className="text-gray-900 font-bold text-xl uppercase tracking-wider">{aiPlayer.name}</span>
+      <div className="fixed top-0 left-0 right-0 h-10 flex items-center justify-center z-50 pointer-events-none">
+          <span
+            className="text-yellow-400 font-bold text-xl uppercase tracking-wider drop-shadow-lg"
+            style={{ textShadow: '0 0 10px rgba(250, 204, 21, 0.6), 2px 2px 4px rgba(0,0,0,0.8)' }}
+          >
+            {aiPlayer.name}
+          </span>
       </div>
 
       <div className="flex-grow flex flex-col justify-center items-center py-12 px-2">
@@ -1499,8 +1504,13 @@ const App: React.FC = () => {
       </div>
 
       {/* Sticky Player Name Bar */}
-      <div className="fixed bottom-0 left-0 right-0 h-10 bg-yellow-400 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] flex items-center justify-center z-50">
-          <span className="text-gray-900 font-bold text-xl uppercase tracking-wider">{humanPlayer.name}</span>
+      <div className="fixed bottom-0 left-0 right-0 h-10 flex items-center justify-center z-50 pointer-events-none">
+          <span
+            className="text-yellow-400 font-bold text-xl uppercase tracking-wider drop-shadow-lg"
+            style={{ textShadow: '0 0 10px rgba(250, 204, 21, 0.6), 2px 2px 4px rgba(0,0,0,0.8)' }}
+          >
+            {humanPlayer.name}
+          </span>
       </div>
 
       {gameState.stage === GameStage.GAME_OVER && gameState.winner && (
