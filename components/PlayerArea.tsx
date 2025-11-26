@@ -158,23 +158,23 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
       const isLeft = position === 'left';
       return (
         <div className={`player-area flex flex-col items-center justify-center w-48 h-full p-4 ${isLeft ? 'mr-auto' : 'ml-auto'} pointer-events-none`}>
+          {/* Hand Pile */}
+          <div
+            ref={playerHandRef}
+            id={`${typePrefix}-hand-container`}
+            className="relative w-20 h-28 md:w-24 md:h-36 mb-8"
+          >
+              {handCardCount > 0 && handCards}
+              {handCardCount > 0 && (
+                <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
+                  {handCardCount}
+                </div>
+              )}
+          </div>
+          {/* Table Cards */}
           <div ref={cardTableRef} className="relative flex flex-col space-y-2 md:space-y-4">
-            <div
-              ref={playerHandRef}
-              id={`${typePrefix}-hand-container`}
-              className="absolute top-0 right-full w-28 h-20 md:w-36 md:h-24 mr-4 md:mr-8"
-            >
-              <div className="relative w-full h-full">
-                {handCardCount > 0 && handCards}
-                {handCardCount > 0 && (
-                  <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
-                    {handCardCount}
-                  </div>
-                )}
-              </div>
-            </div>
             {[0, 1, 2].map(i => (
-              <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-28 h-20 md:w-36 md:h-24 transform rotate-90">
+              <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
                 <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-1 left-1 md:top-2 md:left-2 z-0">
                   {player.lastStand[i] && (
                     <Card
