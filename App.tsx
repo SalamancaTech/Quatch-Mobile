@@ -1403,7 +1403,7 @@ const App: React.FC = () => {
         >
         {/* --- Main Game Grid --- */}
         <div className="relative w-full h-full flex items-center justify-center pointer-events-none">
-          <div className="absolute top-0 pointer-events-none">
+          <div className="absolute top-56 pointer-events-none">
             {topPlayer && (
               <PlayerArea
                 player={topPlayer}
@@ -1417,7 +1417,7 @@ const App: React.FC = () => {
               />
             )}
           </div>
-          <div className="absolute left-0 pointer-events-none">
+          <div className="absolute left-72 top-1/2 -translate-y-1/2 pointer-events-none">
             {leftPlayer && (
               <PlayerArea
                 player={leftPlayer}
@@ -1431,7 +1431,7 @@ const App: React.FC = () => {
               />
             )}
           </div>
-          <div className="absolute right-0 pointer-events-none">
+          <div className="absolute right-72 top-1/2 -translate-y-1/2 pointer-events-none">
             {rightPlayer && (
               <PlayerArea
                 player={rightPlayer}
