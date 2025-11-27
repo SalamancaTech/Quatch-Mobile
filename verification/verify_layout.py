@@ -1,30 +1,51 @@
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, Page, expect
+import time
 
-def verify_layout():
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        # Increase viewport width to ensure desktop layout (where alignment matters most)
-        page = browser.new_page(viewport={'width': 1280, 'height': 800})
+def run(playwright):
+    browser = playwright.chromium.launch(headless=True)
+    page = browser.new_page()
 
-        try:
-            # Wait for Vite dev server (Port 3000 as per vite.config.ts)
-            page.goto("http://localhost:3000/Quatch-Mobile/")
+    # 1. Open the game
+    print("Navigating to game...")
+    try:
+        page.goto("http://localhost:3000/Quatch-Mobile/", timeout=30000)
+    except Exception as e:
+        print(f"Error navigating: {e}")
+        # Try once more
+        page.goto("http://localhost:3000/Quatch-Mobile/")
 
-            # Wait for game to load (Opponent and Player names are good indicators)
-            page.wait_for_selector("text=OPPONENT", timeout=10000)
-            page.wait_for_selector("text=PLAYER 1", timeout=10000)
+    # Wait for the game to load
+    print("Waiting for deck...")
+    page.wait_for_selector("#slot-deck", state="visible", timeout=60000)
 
-            # Additional wait to ensure layout settles
-            page.wait_for_timeout(2000)
+    # 2. Shuffle
+    print("Clicking shuffle...")
+    page.locator("#slot-deck").click()
+    page.wait_for_timeout(1000) # Wait for shuffle animation
 
-            # Take screenshot of the full game board
-            page.screenshot(path="verification/layout_alignment.png", full_page=True)
-            print("Screenshot saved to verification/layout_alignment.png")
+    # 3. Deal
+    print("Clicking deal...")
+    page.locator("#slot-deck").click()
 
-        except Exception as e:
-            print(f"Error: {e}")
-        finally:
-            browser.close()
+    # Wait for dealing animation to complete (it takes a few seconds)
+    print("Waiting for animations...")
+    page.wait_for_timeout(5000)
 
-if __name__ == "__main__":
-    verify_layout()
+    # 4. Screenshot the player's card area
+    print("Taking screenshot...")
+
+    slot0 = page.locator("#player-table-slot-0")
+    if slot0.count() > 0:
+        slot0.screenshot(path="/home/jules/verification/player_slot_0.png")
+        print("Screenshot of slot 0 saved.")
+    else:
+        print("Slot 0 not found!")
+
+    # Full page screenshot as backup
+    page.screenshot(path="/home/jules/verification/full_game.png")
+
+    browser.close()
+    print("Done.")
+
+with sync_playwright() as playwright:
+    run(playwright)
