@@ -236,7 +236,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
               {[0, 1, 2].map(i => (
                   <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
                       {/* Last Stand (Bottom/Behind) */}
-                      <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-1 left-1 md:top-2 md:left-2 z-0">
+                      <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-[7px] left-1 md:left-2 z-0">
                               {player.lastStand[i] && (
                               <Card
                                   card={player.lastStand[i]}
