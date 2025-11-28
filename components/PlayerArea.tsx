@@ -191,7 +191,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
 
   return (
     // Use flex-col-reverse to have DOM order be Hand -> Table, but visual order be Table -> Hand
-    <div className="player-area flex flex-col-reverse items-center w-full max-w-4xl px-4 md:px-8">
+    <div className="player-area flex flex-col-reverse items-center w-full max-w-4xl px-4 md:px-8 pointer-events-none">
       
         {/* Player Hand Area */}
         <div ref={playerHandRef} id="player-hand-container" className="flex justify-center items-end min-h-[160px] w-full pointer-events-auto">
@@ -230,7 +230,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
         </div>
 
         {/* Table Cards Area (LC + LS) */}
-        <div className="flex justify-center items-end w-full">
+        <div className="flex justify-center items-end w-full pointer-events-none">
            <div ref={cardTableRef} className="flex space-x-2 md:space-x-4 mb-4 md:mb-8 pointer-events-auto">
               {/* 3 Columns corresponding to LC slots */}
               {[0, 1, 2].map(i => (
