@@ -1403,8 +1403,9 @@ const App: React.FC = () => {
         >
         {/* --- Main Game Grid --- */}
         <div className="relative w-full flex-grow flex items-center justify-center pointer-events-none">
-          <div className="absolute top-[21%] left-1/2 -translate-x-1/2 pointer-events-none">
-            {topPlayer && (
+
+          {topPlayer && (
+            <div className="fixed top-24 left-1/2 -translate-x-1/2 pointer-events-none z-10">
               <PlayerArea
                 player={topPlayer}
                 isCurrentPlayer={gameState.currentPlayerId === topPlayer.id}
@@ -1415,10 +1416,11 @@ const App: React.FC = () => {
                 difficulty={difficulty}
                 position="top"
               />
-            )}
-          </div>
-          <div className="absolute left-[15%] top-1/2 -translate-y-1/2 pointer-events-none">
-            {leftPlayer && (
+            </div>
+          )}
+
+          {leftPlayer && (
+            <div className="fixed left-4 top-1/2 -translate-y-1/2 pointer-events-none z-10">
               <PlayerArea
                 player={leftPlayer}
                 isCurrentPlayer={gameState.currentPlayerId === leftPlayer.id}
@@ -1429,10 +1431,11 @@ const App: React.FC = () => {
                 difficulty={difficulty}
                 position="left"
               />
-            )}
-          </div>
-          <div className="absolute right-[15%] top-1/2 -translate-y-1/2 pointer-events-none">
-            {rightPlayer && (
+            </div>
+          )}
+
+          {rightPlayer && (
+            <div className="fixed right-4 top-1/2 -translate-y-1/2 pointer-events-none z-10">
               <PlayerArea
                 player={rightPlayer}
                 isCurrentPlayer={gameState.currentPlayerId === rightPlayer.id}
@@ -1443,11 +1446,11 @@ const App: React.FC = () => {
                 difficulty={difficulty}
                 position="right"
               />
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Game Board Wrapper */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
                 {gameState.stage === GameStage.SWAP && (
                     <button
                     onClick={handleStartGame}
@@ -1479,7 +1482,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Player's Controls & Area */}
-            <div className="absolute bottom-0 left-0 w-full flex justify-center pointer-events-none">
+            <div className="fixed bottom-0 left-0 w-full flex justify-center pointer-events-none z-20">
                 {/* Wrap the player area in a droppable for general 'Drop to Hand' actions */}
                 <DroppableArea id="player-hand-drop-zone" className="w-full pointer-events-none">
                     <PlayerArea
