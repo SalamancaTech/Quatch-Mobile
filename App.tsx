@@ -1402,7 +1402,7 @@ const App: React.FC = () => {
             onDragEnd={handleDragEnd}
         >
         {/* --- Main Game Grid --- */}
-        <div className="relative w-full h-full flex items-center justify-center pointer-events-none">
+        <div className="relative w-full flex-grow flex items-center justify-center pointer-events-none">
           <div className="absolute top-[21%] left-1/2 -translate-x-1/2 pointer-events-none">
             {topPlayer && (
               <PlayerArea
@@ -1479,9 +1479,9 @@ const App: React.FC = () => {
             </div>
 
             {/* Player's Controls & Area */}
-            <div className="absolute bottom-0 pointer-events-auto">
+            <div className="absolute bottom-0 left-0 w-full flex justify-center pointer-events-none">
                 {/* Wrap the player area in a droppable for general 'Drop to Hand' actions */}
-                <DroppableArea id="player-hand-drop-zone" className="w-full">
+                <DroppableArea id="player-hand-drop-zone" className="w-full pointer-events-none">
                     <PlayerArea
                         player={humanPlayer}
                         isCurrentPlayer={gameState.currentPlayerId === humanPlayer.id}
