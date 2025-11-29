@@ -915,7 +915,7 @@ const App: React.FC = () => {
 
     const animations: DealAnimationItem[] = [];
     let delay = 0;
-    const delayIncrement = 50;
+    const delayIncrement = 350; // Slower for "one-at-a-time" feel
     const cardWidth = window.innerWidth < 768 ? 80 : 96;
     const cardHeight = window.innerWidth < 768 ? 112 : 144;
     
