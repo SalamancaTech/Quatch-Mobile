@@ -6,7 +6,7 @@ interface AnimatedCardProps {
   card: CardType;
   startRect: DOMRect;
   endRect: DOMRect;
-  animationType: 'play' | 'eat';
+  animationType: 'play' | 'eat' | 'deal';
   onAnimationEnd: () => void;
   delay?: number;
   zIndex: number;
@@ -20,7 +20,7 @@ const AnimatedCard: React.FC<AnimatedCardProps> = ({ card, startRect, endRect, a
   const endXBase = endRect.left - startRect.left;
   const endYBase = endRect.top - startRect.top;
 
-  if (animationType === 'play') {
+  if (animationType === 'play' || animationType === 'deal') {
     const midX = (endXBase / 2);
     const midY = (endYBase / 2) - 80; // A higher arc for more drama
     const endRotation = Math.random() * 12 - 6; // -6 to +6 degrees for a gentle, varied stack
@@ -58,7 +58,9 @@ const AnimatedCard: React.FC<AnimatedCardProps> = ({ card, startRect, endRect, a
     } as React.CSSProperties;
   }
   
-  const animationClass = animationType === 'play' ? 'animate-play-card' : 'animate-eat-card';
+  let animationClass = 'animate-eat-card';
+  if (animationType === 'play') animationClass = 'animate-play-card';
+  if (animationType === 'deal') animationClass = 'animate-deal-card';
 
   return (
     <div style={style} onAnimationEnd={onAnimationEnd} className={animationClass}>

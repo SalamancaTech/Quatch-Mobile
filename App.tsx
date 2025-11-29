@@ -915,7 +915,7 @@ const App: React.FC = () => {
 
     const animations: DealAnimationItem[] = [];
     let delay = 0;
-    const delayIncrement = 350; // Slower for "one-at-a-time" feel
+    const delayIncrement = 200; // Slower for "one-at-a-time" feel
     const cardWidth = window.innerWidth < 768 ? 80 : 96;
     const cardHeight = window.innerWidth < 768 ? 112 : 144;
     
@@ -990,7 +990,7 @@ const App: React.FC = () => {
 
     setDealingStep(4); // Immediately prevent further clicks
     setDealAnimationState(animations);
-    const totalAnimationTime = delay + 700;
+    const totalAnimationTime = delay + 400;
     setTimeout(() => {
         setGameState(finalGameStateUpdate);
         setDealAnimationState(null);
@@ -1302,7 +1302,7 @@ const App: React.FC = () => {
                 card={anim.card}
                 startRect={anim.startRect}
                 endRect={anim.endRect}
-                animationType="play"
+                animationType="deal"
                 delay={anim.delay}
                 zIndex={index}
                 isFaceUp={anim.isFaceUp}
