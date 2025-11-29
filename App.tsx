@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Card as CardType, GameState, Player, GameStage, Rank, Difficulty } from './types';
+import { Card as CardType, GameState, Player, GameStage, Rank, Difficulty, Suit } from './types';
 import { initializeGame, isValidPlay, getAIPlay, playerHasValidMove, getAIStartingCard, shuffleDeck } from './utils/gameLogic';
 import PlayerArea from './components/PlayerArea';
 import GameBoard from './components/GameBoard';
@@ -46,6 +46,16 @@ type RefillAnimationState = {
   };
 } | null;
 
+type ShuffleAnimationItem = {
+    id: string;
+    card: CardType | null; // null for back of card
+    startRect: DOMRect;
+    endRect: DOMRect;
+    animationType: 'shuffle-split' | 'shuffle-riffle';
+    delay: number;
+    zIndex: number;
+};
+
 type SpecialEffectState = {
   type: 'reset' | 'clear';
   rect: DOMRect;
@@ -90,6 +100,7 @@ const App: React.FC = () => {
   const [eatAnimationState, setEatAnimationState] = useState<EatAnimationItem[] | null>(null);
   const [dealAnimationState, setDealAnimationState] = useState<DealAnimationItem[] | null>(null);
   const [refillAnimationState, setRefillAnimationState] = useState<RefillAnimationState | null>(null);
+  const [shuffleAnimationState, setShuffleAnimationState] = useState<ShuffleAnimationItem[] | null>(null);
   const [hiddenCardIds, setHiddenCardIds] = useState(new Set<string>());
   const [isInitialPlay, setIsInitialPlay] = useState(false);
   const [specialEffect, setSpecialEffect] = useState<SpecialEffectState | null>(null);
@@ -351,6 +362,7 @@ const App: React.FC = () => {
     setEatAnimationState(null);
     setDealAnimationState(null);
     setRefillAnimationState(null);
+    setShuffleAnimationState(null);
     setHiddenCardIds(new Set());
     setIsInitialPlay(false);
     setSpecialEffect(null);
@@ -882,8 +894,90 @@ const App: React.FC = () => {
     });
   }
 
+  const runShuffleSequence = async () => {
+      const deckRect = deckRef.current?.getBoundingClientRect();
+      if (!deckRect) return;
+
+      const cycles = 3;
+      const cardsPerSide = 10;
+
+      // Helper to generate items
+      const generateItems = (phase: 'split' | 'riffle'): ShuffleAnimationItem[] => {
+          const items: ShuffleAnimationItem[] = [];
+
+          // Split offsets
+          const leftOffset = -60;
+          const rightOffset = 60;
+
+          for (let i = 0; i < cardsPerSide * 2; i++) {
+              const isLeft = i < cardsPerSide;
+              const stackIndex = isLeft ? i : i - cardsPerSide;
+
+              // Visual stacking offset
+              const verticalOffset = stackIndex * -0.5; // slight stack up
+              const horizontalRandom = (Math.random() - 0.5) * 4;
+
+              const centerRect = new DOMRect(deckRect.left + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
+              const leftRect = new DOMRect(deckRect.left + leftOffset + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
+              const rightRect = new DOMRect(deckRect.left + rightOffset + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
+
+              if (phase === 'split') {
+                  items.push({
+                      id: `shuffle-split-${i}`,
+                      card: null,
+                      startRect: centerRect,
+                      endRect: isLeft ? leftRect : rightRect,
+                      animationType: 'shuffle-split',
+                      delay: stackIndex * 15, // cascade out
+                      zIndex: stackIndex
+                  });
+              } else {
+                  // Riffle: Side -> Center
+                  // We interleave delays for riffle effect
+                  const isLeftFirst = Math.random() > 0.5;
+                  // If 20 cards, we want them to zip together.
+                  // Left 0, Right 0, Left 1, Right 1...
+                  // Base delay + (stackIndex * 20) + (isLeft ? 0 : 10)
+                  const riffleDelay = (stackIndex * 30) + (isLeft === isLeftFirst ? 0 : 15);
+
+                  items.push({
+                      id: `shuffle-riffle-${i}`,
+                      card: null,
+                      startRect: isLeft ? leftRect : rightRect,
+                      endRect: centerRect,
+                      animationType: 'shuffle-riffle',
+                      delay: riffleDelay,
+                      zIndex: stackIndex + (isLeft ? 0 : 100) // Interleave z-index roughly? Actually just stacking is fine.
+                  });
+              }
+          }
+          return items;
+      };
+
+      for (let i = 0; i < cycles; i++) {
+           // 1. Split
+           setShuffleAnimationState(generateItems('split'));
+           await new Promise(r => setTimeout(r, 600)); // Wait for split animation
+
+           // 2. Wait briefly
+           await new Promise(r => setTimeout(r, 100));
+
+           // 3. Riffle
+           setShuffleAnimationState(generateItems('riffle'));
+           await new Promise(r => setTimeout(r, 800)); // Wait for riffle animation
+
+           // 4. Wait briefly
+           await new Promise(r => setTimeout(r, 200));
+      }
+
+      setShuffleAnimationState(null);
+      setGameState(prev => ({ ...prev!, deck: shuffleDeck([...prev!.deck]) }));
+      setSpecialMessage({ text: "Shuffled!", type: 'event' });
+      setDealingStep(1);
+  };
+
   const handleDeckClick = () => {
-    if (gameState?.stage !== GameStage.SETUP || dealAnimationState || dealingStep > 3) return;
+    if (gameState?.stage !== GameStage.SETUP || dealAnimationState || shuffleAnimationState || dealingStep > 3) return;
 
     const startRect = deckRef.current?.getBoundingClientRect();
     if (!startRect) {
@@ -893,13 +987,7 @@ const App: React.FC = () => {
     
     // --- Step 0: Shuffle ---
     if (dealingStep === 0) {
-        if (deckRef.current) {
-            deckRef.current.classList.add('animate-shuffle');
-            setTimeout(() => deckRef.current?.classList.remove('animate-shuffle'), 500);
-        }
-        setGameState(prev => ({ ...prev!, deck: shuffleDeck([...prev!.deck]) }));
-        setSpecialMessage({ text: "Shuffled!", type: 'event' });
-        setDealingStep(1);
+        runShuffleSequence();
         return;
     }
 
@@ -915,7 +1003,7 @@ const App: React.FC = () => {
 
     const animations: DealAnimationItem[] = [];
     let delay = 0;
-    const delayIncrement = 50;
+    const delayIncrement = 200; // Slower for "one-at-a-time" feel
     const cardWidth = window.innerWidth < 768 ? 80 : 96;
     const cardHeight = window.innerWidth < 768 ? 112 : 144;
     
@@ -990,7 +1078,7 @@ const App: React.FC = () => {
 
     setDealingStep(4); // Immediately prevent further clicks
     setDealAnimationState(animations);
-    const totalAnimationTime = delay + 700;
+    const totalAnimationTime = delay + 400;
     setTimeout(() => {
         setGameState(finalGameStateUpdate);
         setDealAnimationState(null);
@@ -1019,7 +1107,7 @@ const App: React.FC = () => {
 
   // AI Turn Logic
   useEffect(() => {
-    if (gameState && gameState.stage === GameStage.PLAY && gameState.players[gameState.currentPlayerId].isAI && !gameState.winner && !animationState && !eatAnimationState && !refillAnimationState) {
+    if (gameState && gameState.stage === GameStage.PLAY && gameState.players[gameState.currentPlayerId].isAI && !gameState.winner && !animationState && !eatAnimationState && !refillAnimationState && !shuffleAnimationState) {
       const turnTimeout = setTimeout(() => {
         const aiPlayer = gameState.players[gameState.currentPlayerId];
         const targetCard = gameState.mpa.length > 0 ? gameState.mpa[gameState.mpa.length - 1] : undefined;
@@ -1302,10 +1390,24 @@ const App: React.FC = () => {
                 card={anim.card}
                 startRect={anim.startRect}
                 endRect={anim.endRect}
-                animationType="play"
+                animationType="deal"
                 delay={anim.delay}
                 zIndex={index}
                 isFaceUp={anim.isFaceUp}
+                onAnimationEnd={() => {}}
+                difficulty={difficulty}
+            />
+        ))}
+        {shuffleAnimationState && shuffleAnimationState.map((anim, index) => (
+             <AnimatedCard
+                key={anim.id}
+                card={{ suit: Suit.Spades, rank: Rank.Two, value: 0, id: anim.id }} // Dummy card data
+                startRect={anim.startRect}
+                endRect={anim.endRect}
+                animationType={anim.animationType}
+                delay={anim.delay}
+                zIndex={anim.zIndex}
+                isFaceUp={false}
                 onAnimationEnd={() => {}}
                 difficulty={difficulty}
             />
@@ -1443,6 +1545,7 @@ const App: React.FC = () => {
                     onBinClick={() => setIsBinViewOpen(true)}
                     difficulty={difficulty}
                     comboCount={comboCount}
+                    isShuffling={!!shuffleAnimationState}
                 />
             </div>
 

@@ -6,7 +6,7 @@ interface AnimatedCardProps {
   card: CardType;
   startRect: DOMRect;
   endRect: DOMRect;
-  animationType: 'play' | 'eat';
+  animationType: 'play' | 'eat' | 'deal' | 'shuffle-split' | 'shuffle-riffle';
   onAnimationEnd: () => void;
   delay?: number;
   zIndex: number;
@@ -20,7 +20,7 @@ const AnimatedCard: React.FC<AnimatedCardProps> = ({ card, startRect, endRect, a
   const endXBase = endRect.left - startRect.left;
   const endYBase = endRect.top - startRect.top;
 
-  if (animationType === 'play') {
+  if (animationType === 'play' || animationType === 'deal') {
     const midX = (endXBase / 2);
     const midY = (endYBase / 2) - 80; // A higher arc for more drama
     const endRotation = Math.random() * 12 - 6; // -6 to +6 degrees for a gentle, varied stack
@@ -36,6 +36,18 @@ const AnimatedCard: React.FC<AnimatedCardProps> = ({ card, startRect, endRect, a
       '--end-y': `${endYBase + (Math.random() * 8 - 4)}px`, // Slight random landing spot
       '--end-rot': `${endRotation}deg`,
       '--z-index': zIndex, // For stacking on the pile
+      animationDelay: `${delay}ms`,
+    } as React.CSSProperties;
+
+  } else if (animationType === 'shuffle-split' || animationType === 'shuffle-riffle') {
+    style = {
+      position: 'fixed',
+      top: `${startRect.top}px`,
+      left: `${startRect.left}px`,
+      zIndex: 100 + zIndex,
+      '--end-x': `${endXBase}px`,
+      '--end-y': `${endYBase}px`,
+      '--z-index': zIndex,
       animationDelay: `${delay}ms`,
     } as React.CSSProperties;
 
@@ -58,7 +70,11 @@ const AnimatedCard: React.FC<AnimatedCardProps> = ({ card, startRect, endRect, a
     } as React.CSSProperties;
   }
   
-  const animationClass = animationType === 'play' ? 'animate-play-card' : 'animate-eat-card';
+  let animationClass = 'animate-eat-card';
+  if (animationType === 'play') animationClass = 'animate-play-card';
+  if (animationType === 'deal') animationClass = 'animate-deal-card';
+  if (animationType === 'shuffle-split') animationClass = 'animate-shuffle-split';
+  if (animationType === 'shuffle-riffle') animationClass = 'animate-shuffle-riffle';
 
   return (
     <div style={style} onAnimationEnd={onAnimationEnd} className={animationClass}>
