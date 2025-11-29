@@ -1425,7 +1425,7 @@ const App: React.FC = () => {
           )}
 
           {/* Game Board Wrapper */}
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
+          <div className="fixed top-[42%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
                 {gameState.stage === GameStage.SWAP && (
                     <button
                     onClick={handleStartGame}

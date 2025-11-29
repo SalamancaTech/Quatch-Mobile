@@ -193,8 +193,8 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
     <div className="player-area flex flex-col items-center w-full max-w-4xl px-4 md:px-8">
       
         {/* Table Cards Area (LC + LS) */}
-        <div className="flex justify-center items-end w-full">
-           <div ref={cardTableRef} className="flex space-x-2 md:space-x-4 mb-4 pointer-events-auto">
+        <div className="flex justify-center items-end w-full pointer-events-none">
+           <div ref={cardTableRef} className="flex space-x-2 md:space-x-4 mb-16 md:mb-24 pointer-events-auto">
               {/* 3 Columns corresponding to LC slots */}
               {[0, 1, 2].map(i => (
                   <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
