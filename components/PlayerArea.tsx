@@ -90,27 +90,18 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
 
     if (position === 'top') {
       return (
-          <div className="player-area flex flex-col items-center w-full max-w-4xl px-4 md:px-8 pointer-events-none">
-              {/* Opponent Hand (Above Table) */}
+          <div className="player-area flex justify-center items-start w-full max-w-4xl px-4 md:px-8 pointer-events-none">
+              {/* Opponent Hand (Left of Table) */}
               <div
                   ref={playerHandRef}
                   id={`${typePrefix}-hand-container`}
-                  className="mb-4 flex justify-center items-center"
+                  className="mr-4 md:mr-8 flex justify-center items-start"
               >
-                  {/* Container for the cards to be centered row */}
-                  <div className="relative flex justify-center space-x-1">
-                      {/* We display a stack/fan but centered. If we want to mimic the 3-block layout, we can space them out if count > 1 */}
-                      {/* For now, let's keep the stack visual but centered. */}
-                      {/* Actually, let's use a small row for visual clarity as per request interpretation */}
+                  <div className="relative w-20 h-28 md:w-24 md:h-36">
+                      {handCardCount > 0 && handCards}
                       {handCardCount > 0 && (
-                          <div className="relative w-20 h-28 md:w-24 md:h-36">
-                              {/* We render the stack here */}
-                              {handCards}
-                              {handCardCount > 0 && (
-                                  <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
-                                      {handCardCount}
-                                  </div>
-                              )}
+                          <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
+                              {handCardCount}
                           </div>
                       )}
                   </div>
