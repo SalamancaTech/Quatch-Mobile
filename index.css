@@ -1,1 +1,18 @@
 @import "tailwindcss";
+
+@layer utilities {
+    .card-size {
+        width: 25vw;
+        height: 37.5vw;
+        max-width: 120px;
+        max-height: 180px; /* 120 * 1.5 */
+    }
+    @media (min-width: 768px) {
+        .card-size {
+            width: 96px;
+            height: 144px;
+            max-width: none;
+            max-height: none;
+        }
+    }
+}
