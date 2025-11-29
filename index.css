@@ -2,17 +2,11 @@
 
 @layer utilities {
     .card-size {
-        width: 23vw;
-        height: 34.5vw; /* 23 * 1.5 */
-        max-width: 96px;
-        max-height: 144px; /* 96 * 1.5 */
-    }
-    @media (min-width: 768px) {
-        .card-size {
-            width: 96px;
-            height: 144px;
-            max-width: none;
-            max-height: none;
-        }
+        width: 22vw;
+        height: 33vw; /* 22 * 1.5 */
+
+        /* Constrain by height to ensure 3 vertical rows fit comfortably */
+        max-height: 26vh;
+        max-width: 17.33vh; /* 26vh / 1.5 */
     }
 }
