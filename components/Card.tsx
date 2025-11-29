@@ -164,8 +164,13 @@ const Card: React.FC<CardProps> = ({ card, isFaceUp = false, isSelected = false,
     return (
       <div
         id={card.id}
-        className={`${cardBaseStyle} overflow-hidden p-0 ${className} bg-[#4a0e0e] border-2 border-yellow-500/30`}
+        className={`${cardBaseStyle} overflow-hidden p-0 ${className} border-2 border-yellow-500/30`}
         onClick={onClick}
+        style={{
+          backgroundImage: "url('/Quatch-Mobile/card_back.png')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}
       >
         {/* Overlay for dirt and damage effects */}
         <div className="absolute inset-0" style={dirtStyle} />
