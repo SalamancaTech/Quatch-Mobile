@@ -189,45 +189,9 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
   const isInLastStand = isHuman && isCurrentPlayer && player.hand.length === 0 && player.lastChance.length === 0;
 
   return (
-    // Use flex-col-reverse to have DOM order be Hand -> Table, but visual order be Table -> Hand
-    <div className="player-area flex flex-col-reverse items-center w-full max-w-4xl px-4 md:px-8 pointer-events-none">
+    // Use flex-col to have DOM order be Table -> Hand (standard)
+    <div className="player-area flex flex-col items-center w-full max-w-4xl px-4 md:px-8">
       
-        {/* Player Hand Area */}
-        <div ref={playerHandRef} id="player-hand-container" className="flex justify-center items-end min-h-[160px] w-full pointer-events-auto">
-            <div
-              ref={handContainerRef}
-              className={`relative flex justify-center items-end transition-opacity duration-300 w-full max-w-3xl h-[144px] ${player.hand.length === 0 ? 'opacity-0' : 'opacity-100'}`}
-            >
-              {player.hand.map((card, index) => {
-                  const isDisabled = isInitialPlay && (card.rank === Rank.Two || card.rank === Rank.Ten);
-
-                  return (
-                      <DraggableCard
-                          key={card.id}
-                          id={card.id}
-                          data={{ type: 'hand-card', index: index, card: card }}
-                          droppableData={isHuman ? { type: 'hand-card', index: index } : undefined}
-                          disabled={!isHuman || isDisabled || (!isCurrentPlayer && currentStage !== GameStage.SWAP)}
-                          className={`player-hand-card-wrapper transition-all duration-200 ease-out hover:-translate-y-8 hover:z-[100] ${hiddenCardIds.has(card.id) ? 'opacity-0' : 'opacity-100'}`}
-                          style={{
-                            zIndex: index,
-                            marginLeft: index > 0 ? `${cardMargin}px` : '0px'
-                          }}
-                      >
-                          <Card
-                              card={card}
-                              isFaceUp={isHuman}
-                              isSelected={isHuman && selectedCards.some(sc => sc.id === card.id)}
-                              onClick={isHuman && (currentStage === GameStage.SWAP || isCurrentPlayer) ? () => onCardSelect(card) : undefined}
-                              isDisabled={isDisabled}
-                              difficulty={difficulty}
-                          />
-                      </DraggableCard>
-                  );
-              })}
-            </div>
-        </div>
-
         {/* Table Cards Area (LC + LS) */}
         <div className="flex justify-center items-end w-full pointer-events-none">
            <div ref={cardTableRef} className="flex space-x-2 md:space-x-4 mb-16 md:mb-24 pointer-events-auto">
@@ -235,7 +199,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
               {[0, 1, 2].map(i => (
                   <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
                       {/* Last Stand (Bottom/Behind) */}
-                      <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-[7px] left-1 md:left-2 z-0">
+                      <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 z-0">
                               {player.lastStand[i] && (
                               <Card
                                   card={player.lastStand[i]}
@@ -247,7 +211,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                               )}
                       </div>
                           {/* Last Chance (Top/Front) */}
-                      <div ref={lastChanceRef} id={`${typePrefix}-lc-slot-${i}`} className={`absolute inset-0 z-10 ${player.lastChance.length === 0 ? 'pointer-events-none' : ''}`}>
+                      <div ref={lastChanceRef} id={`${typePrefix}-lc-slot-${i}`} className={`absolute inset-0 top-2 z-10 ${player.lastChance.length === 0 ? 'pointer-events-none' : ''}`}>
                           {player.lastChance[i] ? (
                               isHuman && currentStage === GameStage.SWAP ? (
                                   <DraggableCard
@@ -293,6 +257,42 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                   </div>
               ))}
            </div>
+        </div>
+
+        {/* Player Hand Area */}
+        <div ref={playerHandRef} id="player-hand-container" className="flex justify-center items-end h-28 md:h-36 w-full pointer-events-auto">
+            <div
+              ref={handContainerRef}
+              className={`relative flex justify-center items-end transition-opacity duration-300 w-full max-w-3xl h-28 md:h-36 ${player.hand.length === 0 ? 'opacity-0' : 'opacity-100'}`}
+            >
+              {player.hand.map((card, index) => {
+                  const isDisabled = isInitialPlay && (card.rank === Rank.Two || card.rank === Rank.Ten);
+
+                  return (
+                      <DraggableCard
+                          key={card.id}
+                          id={card.id}
+                          data={{ type: 'hand-card', index: index, card: card }}
+                          droppableData={isHuman ? { type: 'hand-card', index: index } : undefined}
+                          disabled={!isHuman || isDisabled || (!isCurrentPlayer && currentStage !== GameStage.SWAP)}
+                          className={`player-hand-card-wrapper transition-all duration-200 ease-out hover:-translate-y-8 hover:z-[100] ${hiddenCardIds.has(card.id) ? 'opacity-0' : 'opacity-100'}`}
+                          style={{
+                            zIndex: index,
+                            marginLeft: index > 0 ? `${cardMargin}px` : '0px'
+                          }}
+                      >
+                          <Card
+                              card={card}
+                              isFaceUp={isHuman}
+                              isSelected={isHuman && selectedCards.some(sc => sc.id === card.id)}
+                              onClick={isHuman && (currentStage === GameStage.SWAP || isCurrentPlayer) ? () => onCardSelect(card) : undefined}
+                              isDisabled={isDisabled}
+                              difficulty={difficulty}
+                          />
+                      </DraggableCard>
+                  );
+              })}
+            </div>
         </div>
     </div>
   );

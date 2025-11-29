@@ -1203,7 +1203,7 @@ const App: React.FC = () => {
         );
       })}
 
-      <div className="flex-grow flex flex-col justify-center items-center py-12 px-2">
+      <div className="flex-grow flex flex-col justify-center items-center pt-12 pb-0 px-2">
         <div 
             className="absolute top-12 left-1/2 -translate-x-1/2 text-white text-sm font-light opacity-25 pointer-events-none select-none"
         >
@@ -1457,9 +1457,9 @@ const App: React.FC = () => {
             </div>
 
             {/* Player's Controls & Area */}
-            <div className="fixed bottom-0 left-0 w-full flex justify-center pointer-events-none z-20">
+          <div className="absolute bottom-0 left-0 w-full flex justify-center z-30 pointer-events-auto">
                 {/* Wrap the player area in a droppable for general 'Drop to Hand' actions */}
-                <DroppableArea id="player-hand-drop-zone" className="w-full pointer-events-none">
+                <DroppableArea id="player-hand-drop-zone" className="w-full flex justify-center">
                     <PlayerArea
                         player={humanPlayer}
                         isCurrentPlayer={gameState.currentPlayerId === humanPlayer.id}
