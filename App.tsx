@@ -928,7 +928,7 @@ const App: React.FC = () => {
                       startRect: centerRect,
                       endRect: isLeft ? leftRect : rightRect,
                       animationType: 'shuffle-split',
-                      delay: stackIndex * 15, // cascade out
+                      delay: stackIndex * 10, // cascade out
                       zIndex: stackIndex
                   });
               } else {
@@ -938,7 +938,7 @@ const App: React.FC = () => {
                   // If 20 cards, we want them to zip together.
                   // Left 0, Right 0, Left 1, Right 1...
                   // Base delay + (stackIndex * 20) + (isLeft ? 0 : 10)
-                  const riffleDelay = (stackIndex * 30) + (isLeft === isLeftFirst ? 0 : 15);
+                  const riffleDelay = (stackIndex * 20) + (isLeft === isLeftFirst ? 0 : 10);
 
                   items.push({
                       id: `shuffle-riffle-${i}`,
@@ -957,17 +957,17 @@ const App: React.FC = () => {
       for (let i = 0; i < cycles; i++) {
            // 1. Split
            setShuffleAnimationState(generateItems('split'));
-           await new Promise(r => setTimeout(r, 600)); // Wait for split animation
+           await new Promise(r => setTimeout(r, 450)); // Wait for split animation
 
            // 2. Wait briefly
-           await new Promise(r => setTimeout(r, 100));
+           await new Promise(r => setTimeout(r, 50));
 
            // 3. Riffle
            setShuffleAnimationState(generateItems('riffle'));
-           await new Promise(r => setTimeout(r, 800)); // Wait for riffle animation
+           await new Promise(r => setTimeout(r, 550)); // Wait for riffle animation
 
            // 4. Wait briefly
-           await new Promise(r => setTimeout(r, 200));
+           await new Promise(r => setTimeout(r, 150));
       }
 
       setShuffleAnimationState(null);
