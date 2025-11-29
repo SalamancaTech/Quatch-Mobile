@@ -91,13 +91,13 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
     if (position === 'top') {
       return (
           <div className="player-area flex justify-center items-start w-full max-w-4xl px-4 md:px-8 pointer-events-none">
-              {/* Center Group: Table Cards (LC + LS) aligned with Board */}
-              <div ref={cardTableRef} className="relative flex space-x-2 md:space-x-4">
-                   {/* Opponent Hand (Positioned absolutely to left of Table) */}
+              {/* Center Group: Hand + Table Cards in one flow */}
+              <div className="flex items-start">
+                   {/* Opponent Hand */}
                    <div
                       ref={playerHandRef}
                       id={`${typePrefix}-hand-container`}
-                      className="absolute right-full mr-2 md:mr-4 top-0 flex justify-center items-start"
+                      className="relative mr-4 md:mr-6 flex justify-center items-start"
                    >
                       <div className="relative card-size">
                           {handCardCount > 0 && handCards}
@@ -110,6 +110,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                    </div>
 
                    {/* 3 Columns corresponding to LC slots */}
+                   <div ref={cardTableRef} className="flex space-x-1 md:space-x-4">
                    {[0, 1, 2].map(i => (
                       <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative card-size">
                           {/* Last Stand (Bottom/Behind) */}
@@ -134,6 +135,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                           </div>
                       </div>
                    ))}
+                   </div>
               </div>
           </div>
       );

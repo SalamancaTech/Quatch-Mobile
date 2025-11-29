@@ -2,8 +2,8 @@
 
 @layer utilities {
     .card-size {
-        width: 19vw;
-        height: 28.5vw; /* 19 * 1.5 */
+        width: 23vw;
+        height: 34.5vw; /* 23 * 1.5 */
         max-width: 96px;
         max-height: 144px; /* 96 * 1.5 */
     }
