@@ -1380,7 +1380,7 @@ const App: React.FC = () => {
         <div className="relative w-full flex-grow flex items-center justify-center pointer-events-none">
 
           {topPlayer && (
-            <div className="fixed top-4 left-1/2 -translate-x-1/2 pointer-events-none z-10">
+            <div className="fixed top-[12%] left-1/2 -translate-x-1/2 pointer-events-none z-10">
               <PlayerArea
                 player={topPlayer}
                 isCurrentPlayer={gameState.currentPlayerId === topPlayer.id}
@@ -1457,7 +1457,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Player's Controls & Area */}
-          <div className="absolute bottom-0 left-0 w-full flex justify-center z-30 pointer-events-auto">
+            <div className="fixed bottom-[12%] left-0 w-full flex justify-center pointer-events-none z-20">
                 {/* Wrap the player area in a droppable for general 'Drop to Hand' actions */}
                 <DroppableArea id="player-hand-drop-zone" className="w-full flex justify-center">
                     <PlayerArea

@@ -95,7 +95,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
               <div
                   ref={playerHandRef}
                   id={`${typePrefix}-hand-container`}
-                  className="mr-4 md:mr-8 flex justify-center items-start"
+                  className="mr-2 md:mr-4 flex justify-center items-start"
               >
                   <div className="relative w-20 h-28 md:w-24 md:h-36">
                       {handCardCount > 0 && handCards}
