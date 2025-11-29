@@ -690,10 +690,18 @@ const App: React.FC = () => {
   };
 
   const handlePlayCards = (cardsToPlay: CardType[] = selectedCards) => {
-    if (!gameState || !gameState.isPlayerTurn || cardsToPlay.length === 0 || animationState) return;
+    const isSwap = gameState?.stage === GameStage.SWAP;
+    if (!gameState || (!gameState.isPlayerTurn && !isSwap) || cardsToPlay.length === 0 || animationState) return;
     const player = gameState.players.find(p => !p.isAI)!;
 
-    if (isInitialPlay) {
+    if (isSwap) {
+        if (player.lastChance.filter(c => c).length < 3) {
+            setSpecialMessage({ text: "Fill Last Chance!", type: 'event' });
+            return;
+        }
+    }
+
+    if (isInitialPlay || isSwap) {
         if (cardsToPlay.length > 0 && (cardsToPlay[0].rank === Rank.Two || cardsToPlay[0].rank === Rank.Ten)) {
             setIsInvalidPlay(true);
             setTimeout(() => setIsInvalidPlay(false), 500);
@@ -722,6 +730,9 @@ const App: React.FC = () => {
                 if (!prev) return null;
                 return {
                     ...prev,
+                    stage: GameStage.PLAY,
+                    currentPlayerId: player.id,
+                    isPlayerTurn: true,
                     players: prev.players.map(p => p.id === player.id ? { ...p, hand: p.hand.filter(c => !playerChoice.some(sc => sc.id === c.id)) } : p)
                 };
             });
@@ -733,6 +744,7 @@ const App: React.FC = () => {
                 if (!prev) return null;
                 return {
                     ...prev,
+                    stage: GameStage.PLAY,
                     currentPlayerId: winningAI.id,
                     isPlayerTurn: false,
                     players: prev.players.map(p => p.id === winningAI.id ? { ...p, hand: p.hand.filter(c => !bestAiChoice.cards!.some(sc => sc.id === c.id)) } : p)
@@ -986,19 +998,6 @@ const App: React.FC = () => {
     }, totalAnimationTime);
   };
   
-  const handleStartGame = () => {
-      if(!gameState || gameState.stage !== GameStage.SWAP) return;
-      setSpecialMessage({ text: "Begin!", type: 'event' });
-      setGameState(prev => ({
-          ...prev!,
-          stage: GameStage.PLAY,
-          currentPlayerId: 0,
-          isPlayerTurn: true,
-      }));
-      setIsInitialPlay(true);
-      setIsMenuOpen(false);
-  }
-
   const handleSetDifficulty = (newDifficulty: Difficulty) => {
     setDifficulty(newDifficulty);
     resetGame(numOpponents);
@@ -1426,15 +1425,6 @@ const App: React.FC = () => {
 
           {/* Game Board Wrapper */}
           <div className="fixed top-[42%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
-                {gameState.stage === GameStage.SWAP && (
-                    <button
-                    onClick={handleStartGame}
-                    disabled={humanPlayer.lastChance.filter(c => c).length < 3}
-                    className={`mb-4 px-8 py-3 bg-yellow-500 text-gray-900 font-bold rounded-lg shadow-lg transition-colors z-20 transform ${humanPlayer.lastChance.filter(c => c).length < 3 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-yellow-400 hover:scale-105'}`}
-                    >
-                    Start Game
-                    </button>
-                )}
                 <GameBoard
                     deckCount={gameState.deck.length}
                     mpa={gameState.mpa}
