@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card as CardType, GameState, Player, GameStage, Rank, Difficulty, Suit } from './types';
 import { initializeGame, isValidPlay, getAIPlay, playerHasValidMove, getAIStartingCard, shuffleDeck } from './utils/gameLogic';
+import { getCardDimensions } from './utils/layoutUtils';
 import PlayerArea from './components/PlayerArea';
 import GameBoard from './components/GameBoard';
 import AnimatedCard from './components/AnimatedCard';
@@ -667,8 +668,7 @@ const App: React.FC = () => {
         if (player.isAI) {
             const opponentRect = document.getElementById(`opponent-${player.id}-hand-container`)?.getBoundingClientRect();
             if (opponentRect) {
-                const cardWidth = 96; // from md:w-24 in Card.tsx
-                const cardHeight = 144; // from md:h-36 in Card.tsx
+                const { width: cardWidth, height: cardHeight } = getCardDimensions();
                 startRect = new DOMRect(
                     opponentRect.left + (opponentRect.width - cardWidth) / 2,
                     opponentRect.top + (opponentRect.height - cardHeight) / 2,
@@ -1004,8 +1004,7 @@ const App: React.FC = () => {
     const animations: DealAnimationItem[] = [];
     let delay = 0;
     const delayIncrement = 200; // Slower for "one-at-a-time" feel
-    const cardWidth = window.innerWidth < 768 ? 80 : 96;
-    const cardHeight = window.innerWidth < 768 ? 112 : 144;
+    const { width: cardWidth, height: cardHeight } = getCardDimensions();
     
     const numPlayers = gameState.players.length;
     let currentDeck = [...gameState.deck];
@@ -1581,7 +1580,7 @@ const App: React.FC = () => {
             {activeDragId && (
                 <div className="opacity-100 scale-110 cursor-grabbing shadow-2xl rounded-lg" style={{ touchAction: 'none', transform: 'rotate(3deg)' }}>
                     {activeDragId === 'mpa-stack' ? (
-                       <div className="relative w-20 h-28 md:w-24 md:h-36">
+                       <div className="relative card-size">
                           {gameState.mpa.slice(-3).map((card, index) => (
                              <div key={card.id} className="absolute inset-0" style={{ transform: `translateX(${index * 4}px) translateY(${index * 4}px)`}}>
                                  <Card card={card} isFaceUp={true} difficulty={difficulty}/>
@@ -1593,7 +1592,7 @@ const App: React.FC = () => {
                            {activeDragData?.card ? (
                                 selectedCards.length > 1 && selectedCards.some(c => c.id === activeDragData.card.id) ? (
                                     // Render stack if dragging multiple
-                                    <div className="relative w-20 h-28 md:w-24 md:h-36">
+                                    <div className="relative card-size">
                                         {selectedCards.map((c, i) => (
                                             <div key={c.id} className="absolute inset-0" style={{ transform: `translate(${i*4}px, ${-i*4}px)` }}>
                                                 <Card card={c} isFaceUp={true} difficulty={difficulty} />

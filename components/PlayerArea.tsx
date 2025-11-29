@@ -1,9 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Player, Card as CardType, GameStage, Suit, Rank, Difficulty } from '../types';
 import Card from './Card';
-import { LAYOUT_CONSTANTS } from '../constants';
 import { DraggableCard } from './DraggableCard';
 import { DroppableArea } from './DroppableArea';
+import { getCardDimensions } from '../utils/layoutUtils';
 
 interface PlayerAreaProps {
   player: Player;
@@ -39,7 +39,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
 
         const containerWidth = handContainerRef.current.offsetWidth;
         // Corresponds to md:w-24 (96px) and w-20 (80px) in Card.tsx
-        const cardWidth = window.innerWidth >= 768 ? LAYOUT_CONSTANTS.CARD_WIDTH_MD : LAYOUT_CONSTANTS.CARD_WIDTH_SM;
+        const cardWidth = getCardDimensions().width;
         const numCards = player.hand.length;
 
         // Total width of all cards without any overlap
@@ -91,27 +91,27 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
     if (position === 'top') {
       return (
           <div className="player-area flex justify-center items-start w-full max-w-4xl px-4 md:px-8 pointer-events-none">
-              {/* Opponent Hand (Left of Table) */}
-              <div
-                  ref={playerHandRef}
-                  id={`${typePrefix}-hand-container`}
-                  className="mr-5 md:mr-7 flex justify-center items-start"
-              >
-                  <div className="relative w-20 h-28 md:w-24 md:h-36">
-                      {handCardCount > 0 && handCards}
-                      {handCardCount > 0 && (
-                          <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
-                              {handCardCount}
-                          </div>
-                      )}
-                  </div>
-              </div>
-
               {/* Center Group: Table Cards (LC + LS) aligned with Board */}
               <div ref={cardTableRef} className="relative flex space-x-2 md:space-x-4">
+                   {/* Opponent Hand (Positioned absolutely to left of Table) */}
+                   <div
+                      ref={playerHandRef}
+                      id={`${typePrefix}-hand-container`}
+                      className="absolute right-full mr-2 md:mr-4 top-0 flex justify-center items-start"
+                   >
+                      <div className="relative card-size">
+                          {handCardCount > 0 && handCards}
+                          {handCardCount > 0 && (
+                              <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
+                                  {handCardCount}
+                              </div>
+                          )}
+                      </div>
+                   </div>
+
                    {/* 3 Columns corresponding to LC slots */}
                    {[0, 1, 2].map(i => (
-                      <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
+                      <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative card-size">
                           {/* Last Stand (Bottom/Behind) */}
                           <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-1 left-1 md:top-2 md:left-2 z-0">
                                {player.lastStand[i] && (
@@ -146,7 +146,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
           <div
             ref={playerHandRef}
             id={`${typePrefix}-hand-container`}
-            className="relative w-20 h-28 md:w-24 md:h-36 mb-8"
+            className="relative card-size mb-8"
           >
               {handCardCount > 0 && handCards}
               {handCardCount > 0 && (
@@ -158,7 +158,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
           {/* Table Cards */}
           <div ref={cardTableRef} className="relative flex flex-col space-y-2 md:space-y-4">
             {[0, 1, 2].map(i => (
-              <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
+              <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative card-size">
                 <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-1 left-1 md:top-2 md:left-2 z-0">
                   {player.lastStand[i] && (
                     <Card
@@ -233,7 +233,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
            <div ref={cardTableRef} className="flex space-x-2 md:space-x-4 mb-0 md:mb-3 pointer-events-auto">
               {/* 3 Columns corresponding to LC slots */}
               {[0, 1, 2].map(i => (
-                  <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
+                  <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative card-size">
                       {/* Last Stand (Bottom/Behind) */}
                       <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-[7px] left-1 md:left-2 z-0">
                               {player.lastStand[i] && (
