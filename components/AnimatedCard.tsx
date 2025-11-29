@@ -6,7 +6,7 @@ interface AnimatedCardProps {
   card: CardType;
   startRect: DOMRect;
   endRect: DOMRect;
-  animationType: 'play' | 'eat' | 'deal';
+  animationType: 'play' | 'eat' | 'deal' | 'shuffle-split' | 'shuffle-riffle';
   onAnimationEnd: () => void;
   delay?: number;
   zIndex: number;
@@ -39,6 +39,18 @@ const AnimatedCard: React.FC<AnimatedCardProps> = ({ card, startRect, endRect, a
       animationDelay: `${delay}ms`,
     } as React.CSSProperties;
 
+  } else if (animationType === 'shuffle-split' || animationType === 'shuffle-riffle') {
+    style = {
+      position: 'fixed',
+      top: `${startRect.top}px`,
+      left: `${startRect.left}px`,
+      zIndex: 100 + zIndex,
+      '--end-x': `${endXBase}px`,
+      '--end-y': `${endYBase}px`,
+      '--z-index': zIndex,
+      animationDelay: `${delay}ms`,
+    } as React.CSSProperties;
+
   } else { // 'eat'
     const startRotation = Math.random() * 20 - 10;
     const endRotation = (Math.random() > 0.5 ? 1 : -1) * (180 + Math.random() * 180); // Wild spin
@@ -61,6 +73,8 @@ const AnimatedCard: React.FC<AnimatedCardProps> = ({ card, startRect, endRect, a
   let animationClass = 'animate-eat-card';
   if (animationType === 'play') animationClass = 'animate-play-card';
   if (animationType === 'deal') animationClass = 'animate-deal-card';
+  if (animationType === 'shuffle-split') animationClass = 'animate-shuffle-split';
+  if (animationType === 'shuffle-riffle') animationClass = 'animate-shuffle-riffle';
 
   return (
     <div style={style} onAnimationEnd={onAnimationEnd} className={animationClass}>

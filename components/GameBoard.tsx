@@ -23,9 +23,10 @@ interface GameBoardProps {
   onBinClick?: () => void;
   difficulty: Difficulty;
   comboCount: number;
+  isShuffling?: boolean;
 }
 
-const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaClick, isPlayerTurn, hasSelectedCards, isInvalidPlay, stage, onDeckClick, mpaRef, deckRef, isEating, dealingStep = 4, isCheatingEnabled = false, onBinClick, difficulty, comboCount }) => {
+const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaClick, isPlayerTurn, hasSelectedCards, isInvalidPlay, stage, onDeckClick, mpaRef, deckRef, isEating, dealingStep = 4, isCheatingEnabled = false, onBinClick, difficulty, comboCount, isShuffling = false }) => {
   let mpaClasses = 'flex flex-col items-center p-2 rounded-lg transform transition-all duration-200';
 
   if (isInvalidPlay) {
@@ -124,7 +125,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaCl
       className={`${wrapperClasses} ${isDeckClickable ? clickableDeckClasses : ""}`}
       onClick={isDeckClickable ? onDeckClick : undefined}
     >
-      <div className="absolute inset-0">
+      <div className={`absolute inset-0 ${isShuffling ? 'opacity-0' : 'opacity-100'}`}>
           {deckCount > 0
             ? <Card card={{ suit: Suit.Spades, rank: Rank.Two, value: 0, id: 'deck-card' }} isFaceUp={false} difficulty={difficulty} />
             : <Card card={null} difficulty={difficulty} />
