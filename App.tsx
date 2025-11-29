@@ -10,7 +10,6 @@ import GameOverModal from './components/GameMessage';
 import DifficultyModal from './components/DifficultyModal';
 import GameRulesModal from './components/GameRulesModal';
 import EditNamesModal from './components/EditNamesModal';
-import NumberOfPlayersModal from './components/NumberOfPlayersModal';
 import StatisticsModal from './components/StatisticsModal';
 import { LAYOUT_CONSTANTS } from './constants';
 import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, TouchSensor, DragEndEvent, DragStartEvent, DragOverEvent } from '@dnd-kit/core';
@@ -104,8 +103,7 @@ const App: React.FC = () => {
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isEditNamesModalOpen, setIsEditNamesModalOpen] = useState(false);
   const [isStatisticsModalOpen, setIsStatisticsModalOpen] = useState(false);
-  const [isNumPlayersModalOpen, setIsNumPlayersModalOpen] = useState(false);
-  const [numOpponents, setNumOpponents] = useState(1);
+  const [numOpponents] = useState(1);
   const [playerNames, setPlayerNames] = useState<string[]>(['Player 1', 'Opponent 1', 'Opponent 2', 'Opponent 3']);
 
   // DND State
@@ -343,16 +341,6 @@ const App: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 720 && numOpponents !== 1) {
-        setNumOpponents(1);
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    handleResize();
-    return () => window.removeEventListener('resize', handleResize);
-  }, [numOpponents]);
 
   const resetGame = useCallback((numOpps: number) => {
     const initialPlayerNames = playerNames.slice(0, numOpps + 1);
@@ -1016,11 +1004,6 @@ const App: React.FC = () => {
     resetGame(numOpponents);
   };
 
-  const handleSelectNumOpponents = (num: number) => {
-    setNumOpponents(num);
-    setIsNumPlayersModalOpen(false);
-  };
-
   const handleSaveNames = (newNames: string[]) => {
     const finalNames = newNames.map((name, index) => name.trim() || (index === 0 ? 'Player 1' : `Opponent ${index}`));
     setPlayerNames(finalNames);
@@ -1253,7 +1236,6 @@ const App: React.FC = () => {
             {isMenuOpen && (
             <div className="absolute top-12 right-0 bg-gray-800 rounded-lg shadow-xl py-2 w-56">
                 <button onClick={() => resetGame(numOpponents)} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">New Game</button>
-                <button onClick={() => { setIsNumPlayersModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Number of Opponents</button>
                 <button onClick={() => { setIsDifficultyModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Change Difficulty</button>
                 <button onClick={() => { setIsEditNamesModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Edit Names</button>
                 <button onClick={() => { setIsRulesModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Game Rules</button>
@@ -1277,13 +1259,6 @@ const App: React.FC = () => {
             currentDifficulty={difficulty}
             onSelect={handleSetDifficulty}
             onClose={() => setIsDifficultyModalOpen(false)}
-            />
-        )}
-
-        {isNumPlayersModalOpen && (
-            <NumberOfPlayersModal
-                onSelect={handleSelectNumOpponents}
-                onClose={() => setIsNumPlayersModalOpen(false)}
             />
         )}
 
@@ -1405,7 +1380,7 @@ const App: React.FC = () => {
         <div className="relative w-full flex-grow flex items-center justify-center pointer-events-none">
 
           {topPlayer && (
-            <div className="fixed top-24 left-1/2 -translate-x-1/2 pointer-events-none z-10">
+            <div className="fixed top-[12%] left-1/2 -translate-x-1/2 pointer-events-none z-10">
               <PlayerArea
                 player={topPlayer}
                 isCurrentPlayer={gameState.currentPlayerId === topPlayer.id}
@@ -1450,7 +1425,7 @@ const App: React.FC = () => {
           )}
 
           {/* Game Board Wrapper */}
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
+          <div className="fixed top-[42%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
                 {gameState.stage === GameStage.SWAP && (
                     <button
                     onClick={handleStartGame}
@@ -1482,7 +1457,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Player's Controls & Area */}
-            <div className="fixed bottom-0 left-0 w-full flex justify-center pointer-events-none z-20">
+            <div className="fixed bottom-[12%] left-0 w-full flex justify-center pointer-events-none z-20">
                 {/* Wrap the player area in a droppable for general 'Drop to Hand' actions */}
                 <DroppableArea id="player-hand-drop-zone" className="w-full pointer-events-none">
                     <PlayerArea
