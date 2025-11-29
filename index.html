@@ -52,6 +52,29 @@
         animation: play-card-animation 0.7s ease-in-out forwards;
       }
 
+      .animate-deal-card {
+        animation: play-card-animation 0.35s ease-in-out forwards;
+      }
+
+      @keyframes shuffle-move-animation {
+        0% {
+          transform: translate(0, 0);
+          z-index: var(--z-index);
+        }
+        100% {
+          transform: translate(var(--end-x), var(--end-y));
+          z-index: var(--z-index);
+        }
+      }
+
+      .animate-shuffle-split {
+        animation: shuffle-move-animation 0.3s ease-out forwards;
+      }
+
+      .animate-shuffle-riffle {
+        animation: shuffle-move-animation 0.2s ease-in forwards;
+      }
+
       @keyframes eat-card-animation {
         0% {
             transform: translate(0, 0) rotate(var(--start-rot)) scale(1);
