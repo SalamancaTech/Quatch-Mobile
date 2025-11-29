@@ -40,7 +40,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaCl
     }
   }
 
-  const wrapperClasses = "relative w-20 h-28 md:w-24 md:h-36 flex flex-col items-center justify-center";
+  const wrapperClasses = "relative card-size flex flex-col items-center justify-center";
   const isDeckClickable = stage === GameStage.SETUP && dealingStep <= 3;
   const clickableDeckClasses = isDeckClickable ? "cursor-pointer transition-transform hover:scale-105 ring-4 ring-yellow-400 p-2 rounded-lg" : "";
   
@@ -151,17 +151,17 @@ const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaCl
          {/* Center Group: Bin, MPA, Deck (Aligns with Slots 0, 1, 2) */}
          <div className="flex space-x-2 md:space-x-4">
               {/* Slot 0: Bin */}
-              <div className="relative w-20 h-28 md:w-24 md:h-36 flex items-center justify-center">
+              <div className="relative card-size flex items-center justify-center">
                   {BinPile}
               </div>
 
               {/* Slot 1: MPA */}
-              <div className="relative w-20 h-28 md:w-24 md:h-36 flex items-center justify-center">
+              <div className="relative card-size flex items-center justify-center">
                   {MpaPile}
               </div>
 
               {/* Slot 2: Deck */}
-              <div className="relative w-20 h-28 md:w-24 md:h-36 flex items-center justify-center ml-[10px]">
+              <div className="relative card-size flex items-center justify-center ml-[10px]">
                   {DeckPile}
               </div>
           </div>
