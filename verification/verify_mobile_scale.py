@@ -14,12 +14,11 @@ def verify_mobile_scale():
         page.wait_for_selector(".game-board-bg")
 
         # Take a screenshot of the initial load
-        page.screenshot(path="verification/mobile_initial_load.png")
-        print("Screenshot saved to verification/mobile_initial_load.png")
+        page.screenshot(path="verification/mobile_guide_layout.png")
+        print("Screenshot saved to verification/mobile_guide_layout.png")
 
         # Verify card dimensions via JS evaluation
-        # We expect card-size to be 25vw. 390 * 0.25 = 97.5px.
-        # But we capped it at 120px in logic. 97.5 < 120, so it should be ~97.5px.
+        # We expect card-size to be 19vw. 390 * 0.19 = 74.1px.
 
         # Let's find a card-size element. The Deck is a good candidate.
         deck = page.locator("#slot-deck").first
@@ -27,9 +26,10 @@ def verify_mobile_scale():
 
         if box:
             print(f"Deck Dimensions: {box['width']}x{box['height']}")
-            expected_width = 390 * 0.25
+            expected_width = 390 * 0.19
+            # Tolerance of 2px
             if abs(box['width'] - expected_width) < 2:
-                print("SUCCESS: Card width matches 25vw logic!")
+                print(f"SUCCESS: Card width {box['width']} matches 19vw logic (~{expected_width})!")
             else:
                 print(f"WARNING: Card width {box['width']} does not match expected {expected_width}")
         else:

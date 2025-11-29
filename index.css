@@ -2,10 +2,10 @@
 
 @layer utilities {
     .card-size {
-        width: 25vw;
-        height: 37.5vw;
-        max-width: 120px;
-        max-height: 180px; /* 120 * 1.5 */
+        width: 19vw;
+        height: 28.5vw; /* 19 * 1.5 */
+        max-width: 96px;
+        max-height: 144px; /* 96 * 1.5 */
     }
     @media (min-width: 768px) {
         .card-size {

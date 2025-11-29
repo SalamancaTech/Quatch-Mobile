@@ -91,24 +91,24 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
     if (position === 'top') {
       return (
           <div className="player-area flex justify-center items-start w-full max-w-4xl px-4 md:px-8 pointer-events-none">
-              {/* Opponent Hand (Left of Table) */}
-              <div
-                  ref={playerHandRef}
-                  id={`${typePrefix}-hand-container`}
-                  className="mr-5 md:mr-7 flex justify-center items-start"
-              >
-                  <div className="relative card-size">
-                      {handCardCount > 0 && handCards}
-                      {handCardCount > 0 && (
-                          <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
-                              {handCardCount}
-                          </div>
-                      )}
-                  </div>
-              </div>
-
               {/* Center Group: Table Cards (LC + LS) aligned with Board */}
               <div ref={cardTableRef} className="relative flex space-x-2 md:space-x-4">
+                   {/* Opponent Hand (Positioned absolutely to left of Table) */}
+                   <div
+                      ref={playerHandRef}
+                      id={`${typePrefix}-hand-container`}
+                      className="absolute right-full mr-2 md:mr-4 top-0 flex justify-center items-start"
+                   >
+                      <div className="relative card-size">
+                          {handCardCount > 0 && handCards}
+                          {handCardCount > 0 && (
+                              <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
+                                  {handCardCount}
+                              </div>
+                          )}
+                      </div>
+                   </div>
+
                    {/* 3 Columns corresponding to LC slots */}
                    {[0, 1, 2].map(i => (
                       <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative card-size">
