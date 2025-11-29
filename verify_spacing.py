@@ -1,31 +1,32 @@
-
 from playwright.sync_api import sync_playwright
+import time
 
-def verify_spacing_screenshot():
+def verify_spacing():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        # Mobile viewport
-        context = browser.new_context(viewport={'width': 720, 'height': 1280})
+        # Use a slightly taller viewport to minimize overlap risk, but force click anyway
+        context = browser.new_context(viewport={'width': 414, 'height': 896})
         page = context.new_page()
 
-        try:
-            print("Navigating...")
-            page.goto('http://localhost:3000')
+        print("Navigating...")
+        page.goto('http://localhost:3001/Quatch-Mobile/')
+        page.wait_for_selector('#slot-deck', state='visible', timeout=10000)
 
-            print("Starting game...")
-            page.wait_for_selector('text=Click to Shuffle', timeout=10000).click(force=True)
-            page.wait_for_timeout(1000)
-            page.wait_for_selector('#slot-deck', timeout=10000).click(force=True)
-            page.wait_for_timeout(3000)
+        # Shuffle and Deal to see the opponent hand and deck
+        print("Shuffling...")
+        # Force click because transparent layers might overlap on some viewports
+        page.click('#slot-deck', force=True)
+        time.sleep(1)
 
-            screenshot_path = '/home/jules/verification/layout_spacing_final.png'
-            page.screenshot(path=screenshot_path)
-            print(f"Screenshot taken at {screenshot_path}")
+        print("Dealing...")
+        page.click('#slot-deck', force=True)
+        time.sleep(3) # Wait for animation
 
-        except Exception as e:
-            print(f"Error: {e}")
-        finally:
-            browser.close()
+        print("Taking screenshot...")
+        page.screenshot(path='layout_spacing_final.png')
+        print("Screenshot saved to layout_spacing_final.png")
+
+        browser.close()
 
 if __name__ == "__main__":
-    verify_spacing_screenshot()
+    verify_spacing()
