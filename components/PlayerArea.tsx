@@ -90,26 +90,34 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
 
     if (position === 'top') {
       return (
-          <div className="player-area flex justify-center items-end w-full max-w-4xl px-4 md:px-8 pointer-events-none">
+          <div className="player-area flex flex-col items-center w-full max-w-4xl px-4 md:px-8 pointer-events-none">
+              {/* Opponent Hand (Above Table) */}
+              <div
+                  ref={playerHandRef}
+                  id={`${typePrefix}-hand-container`}
+                  className="mb-4 flex justify-center items-center"
+              >
+                  {/* Container for the cards to be centered row */}
+                  <div className="relative flex justify-center space-x-1">
+                      {/* We display a stack/fan but centered. If we want to mimic the 3-block layout, we can space them out if count > 1 */}
+                      {/* For now, let's keep the stack visual but centered. */}
+                      {/* Actually, let's use a small row for visual clarity as per request interpretation */}
+                      {handCardCount > 0 && (
+                          <div className="relative w-20 h-28 md:w-24 md:h-36">
+                              {/* We render the stack here */}
+                              {handCards}
+                              {handCardCount > 0 && (
+                                  <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
+                                      {handCardCount}
+                                  </div>
+                              )}
+                          </div>
+                      )}
+                  </div>
+              </div>
+
               {/* Center Group: Table Cards (LC + LS) aligned with Board */}
               <div ref={cardTableRef} className="relative flex space-x-2 md:space-x-4">
-
-                   {/* Opponent Hand (Attached to the left of the group) */}
-                   <div
-                      ref={playerHandRef}
-                      id={`${typePrefix}-hand-container`}
-                      className="absolute top-0 right-full w-20 h-28 md:w-24 md:h-36 mr-4 md:mr-8"
-                   >
-                      <div className="relative w-full h-full">
-                          {handCardCount > 0 && handCards}
-                          {handCardCount > 0 && (
-                              <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
-                                  {handCardCount}
-                              </div>
-                          )}
-                      </div>
-                   </div>
-
                    {/* 3 Columns corresponding to LC slots */}
                    {[0, 1, 2].map(i => (
                       <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
