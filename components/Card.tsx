@@ -13,7 +13,7 @@ interface CardProps {
 
 const Card: React.FC<CardProps> = ({ card, isFaceUp = false, isSelected = false, onClick, className = '', isDisabled = false, difficulty = 'Medium' }) => {
   if (!card) {
-    return <div className={`w-20 h-28 md:w-24 md:h-36 rounded-lg border-2 border-dashed border-blue-300/50 ${className}`} />;
+    return <div className={`w-24 h-36 md:w-24 md:h-36 rounded-lg border-2 border-dashed border-blue-300/50 ${className}`} />;
   }
   
   const isTinted = difficulty === 'Hard' || difficulty === 'Extreme';
@@ -28,7 +28,7 @@ const Card: React.FC<CardProps> = ({ card, isFaceUp = false, isSelected = false,
     ? (card.suit === Suit.Hearts || card.suit === Suit.Diamonds ? 'text-red-900' : 'text-stone-900')
     : (card.suit === Suit.Hearts || card.suit === Suit.Diamonds ? 'text-red-600' : 'text-black');
 
-  const cardBaseStyle = "relative w-20 h-28 md:w-24 md:h-36 rounded-lg shadow-lg p-2 transition-all duration-200 ease-in-out select-none";
+  const cardBaseStyle = "relative w-24 h-36 md:w-24 md:h-36 rounded-lg shadow-lg p-2 transition-all duration-200 ease-in-out select-none";
   
   const interactionStyle = isDisabled
     ? 'opacity-50 cursor-not-allowed'

@@ -97,7 +97,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                   id={`${typePrefix}-hand-container`}
                   className="mr-5 md:mr-7 flex justify-center items-start"
               >
-                  <div className="relative w-20 h-28 md:w-24 md:h-36">
+                  <div className="relative w-24 h-36 md:w-24 md:h-36">
                       {handCardCount > 0 && handCards}
                       {handCardCount > 0 && (
                           <div className="absolute -top-4 -right-4 bg-yellow-400 text-black font-oswald font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white shadow-lg z-20 text-lg">
@@ -111,7 +111,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
               <div ref={cardTableRef} className="relative flex space-x-2 md:space-x-4">
                    {/* 3 Columns corresponding to LC slots */}
                    {[0, 1, 2].map(i => (
-                      <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
+                      <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-24 h-36 md:w-24 md:h-36">
                           {/* Last Stand (Bottom/Behind) */}
                           <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-1 left-1 md:top-2 md:left-2 z-0">
                                {player.lastStand[i] && (
@@ -146,7 +146,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
           <div
             ref={playerHandRef}
             id={`${typePrefix}-hand-container`}
-            className="relative w-20 h-28 md:w-24 md:h-36 mb-8"
+            className="relative w-24 h-36 md:w-24 md:h-36 mb-8"
           >
               {handCardCount > 0 && handCards}
               {handCardCount > 0 && (
@@ -158,7 +158,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
           {/* Table Cards */}
           <div ref={cardTableRef} className="relative flex flex-col space-y-2 md:space-y-4">
             {[0, 1, 2].map(i => (
-              <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
+              <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-24 h-36 md:w-24 md:h-36">
                 <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-1 left-1 md:top-2 md:left-2 z-0">
                   {player.lastStand[i] && (
                     <Card
@@ -233,7 +233,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
            <div ref={cardTableRef} className="flex space-x-2 md:space-x-4 mb-0 md:mb-3 pointer-events-auto">
               {/* 3 Columns corresponding to LC slots */}
               {[0, 1, 2].map(i => (
-                  <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-20 h-28 md:w-24 md:h-36">
+                  <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative w-24 h-36 md:w-24 md:h-36">
                       {/* Last Stand (Bottom/Behind) */}
                       <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-[7px] left-1 md:left-2 z-0">
                               {player.lastStand[i] && (
