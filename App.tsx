@@ -345,19 +345,14 @@ const App: React.FC = () => {
       const isClickedInHand = player.hand.some(c => c.id === card.id);
       const isClickedInLC = player.lastChance.some(c => c && c.id === card.id);
 
-      const selected = selectedCards.length === 1 ? selectedCards[0] : null;
-      const isSelectedInHand = selected && player.hand.some(c => c.id === selected.id);
-      const isSelectedInLC = selected && player.lastChance.some(c => c && c.id === selected.id);
+      const isSelectedInHand = selectedCards.length > 0 && player.hand.some(c => c.id === selectedCards[0].id);
+      const isSelectedInLC = selectedCards.length > 0 && player.lastChance.some(c => c && c.id === selectedCards[0].id);
 
-      if (!selected || (isSelectedInHand && isClickedInHand) || (isSelectedInLC && isClickedInLC)) {
-        if (selected?.id === card.id) {
-          setSelectedCards([]);
-        } else if (isClickedInHand || isClickedInLC) {
-          setSelectedCards([card]);
-        }
-      } 
-      else if ((isSelectedInHand && isClickedInLC) || (isSelectedInLC && isClickedInHand)) {
-        const card1 = selected!;
+      // Check for Swap Context: Exactly one card selected and clicking in the other area
+      const isSwapAction = selectedCards.length === 1 && ((isSelectedInHand && isClickedInLC) || (isSelectedInLC && isClickedInHand));
+
+      if (isSwapAction) {
+        const card1 = selectedCards[0];
         const card2 = card;
         const playerId = player.id;
 
@@ -388,7 +383,27 @@ const App: React.FC = () => {
             };
         });
         setSelectedCards([]);
+        return;
       }
+
+      // If switching areas without a valid swap (e.g., multi-select in hand then click LC), reset selection
+      if ((isSelectedInHand && isClickedInLC) || (isSelectedInLC && isClickedInHand)) {
+          setSelectedCards([card]);
+          return;
+      }
+
+      // Allow multi-select within the same area (or if starting fresh)
+      setSelectedCards(prev => {
+        const isSelected = prev.some(sc => sc.id === card.id);
+        if (isSelected) {
+            return prev.filter(sc => sc.id !== card.id);
+        } else {
+            if (prev.length > 0 && prev[0].rank !== card.rank) {
+                return [card];
+            }
+            return [...prev, card];
+        }
+      });
       return;
     }
 
