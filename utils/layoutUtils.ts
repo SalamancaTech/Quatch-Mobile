@@ -4,12 +4,12 @@ export const getCardDimensions = () => {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
-    // Logic matching CSS .card-size
-    // Width is constrained by 22vw
-    const widthByVw = vw * 0.22;
+    // Logic matching CSS .card-size (Scaled down by ~10%)
+    // Width is constrained by 20vw
+    const widthByVw = vw * 0.20;
 
-    // Height is constrained by 26vh
-    const maxHeight = vh * 0.26;
+    // Height is constrained by 23.5vh
+    const maxHeight = vh * 0.235;
     // Width derived from max height (Aspect Ratio 1.5)
     const widthByVh = maxHeight / 1.5;
 

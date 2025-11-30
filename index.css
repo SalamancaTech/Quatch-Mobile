@@ -2,11 +2,13 @@
 
 @layer utilities {
     .card-size {
-        width: 22vw;
-        height: 33vw; /* 22 * 1.5 */
+        /* Scaled down by ~10% from previous (22vw) */
+        width: 20vw;
+        height: 30vw; /* 20 * 1.5 */
 
         /* Constrain by height to ensure 3 vertical rows fit comfortably */
-        max-height: 26vh;
-        max-width: 17.33vh; /* 26vh / 1.5 */
+        /* Scaled down by ~10% from previous (26vh) */
+        max-height: 23.5vh;
+        max-width: 15.66vh; /* 23.5vh / 1.5 */
     }
 }
