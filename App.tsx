@@ -16,7 +16,6 @@ import { LAYOUT_CONSTANTS } from './constants';
 import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, TouchSensor, DragEndEvent, DragStartEvent, DragOverEvent } from '@dnd-kit/core';
 import Card from './components/Card';
 import { DroppableArea } from './components/DroppableArea';
-import { soundManager } from './utils/soundManager';
 
 type AnimationState = {
   cards: CardType[];
@@ -120,7 +119,6 @@ const App: React.FC = () => {
   const [isStatisticsModalOpen, setIsStatisticsModalOpen] = useState(false);
   const [numOpponents] = useState(1);
   const [playerNames, setPlayerNames] = useState<string[]>(['Player 1', 'Opponent 1', 'Opponent 2', 'Opponent 3']);
-  const [isMuted, setIsMuted] = useState(soundManager.getMuted());
 
   // DND State
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -135,6 +133,15 @@ const App: React.FC = () => {
   const playerLastChanceRef = useRef<HTMLDivElement>(null);
   const playerCardTableRef = useRef<HTMLDivElement>(null);
   const opponentLastStandRef = useRef<HTMLDivElement>(null);
+
+  // --- Sound System ---
+  const playSound = useCallback((type: 'card-place' | 'shuffle' | 'eat' | 'deal' | 'notification' | 'error' | 'victory') => {
+    // In a production app, you would play actual audio files here.
+    // Example: new Audio(`/sounds/${type}.mp3`).play().catch(() => {});
+    // For now, we will just log the event to confirm the trigger works.
+    console.log(`🔊 Sound Triggered: ${type}`);
+  }, []);
+  // --------------------
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -213,6 +220,7 @@ const App: React.FC = () => {
                      });
                      return { ...prev, players: newPlayers };
                  });
+                 playSound('card-place');
              }
         }
         return;
@@ -268,6 +276,7 @@ const App: React.FC = () => {
                  });
                  return { ...prev, players: newPlayers };
             });
+            playSound('card-place');
             return;
         }
 
@@ -292,6 +301,7 @@ const App: React.FC = () => {
                 });
                 return { ...prev, players: newPlayers };
             });
+            playSound('card-place');
             return;
         }
     }
@@ -387,6 +397,7 @@ const App: React.FC = () => {
             };
         });
         setSelectedCards([]);
+        playSound('card-place');
         return;
       }
 
@@ -460,6 +471,7 @@ const App: React.FC = () => {
         if (clearMpa) {
             binCopy = [...binCopy, ...mpaCopy];
             mpaCopy = [];
+            playSound('notification'); // Clear sound
         }
         
         const stateAfterPlay: GameState = {
@@ -474,6 +486,7 @@ const App: React.FC = () => {
                              playerAfterUpdate.lastStand.every(c => c === null);
 
         if (playerHasWon) {
+            playSound('victory');
             return {
                 ...stateAfterPlay,
                 winner: playerAfterUpdate,
@@ -575,10 +588,13 @@ const App: React.FC = () => {
     
     if (mpaForCheck.length >= 4 && mpaForCheck.slice(-4).every(c => c.rank === playedCard.rank)) {
       setSpecialMessage({ text: "4 OF A KIND!", type: 'event' });
+      playSound('notification');
     } else if (playedCard.rank === Rank.Ten) {
       setSpecialMessage({ text: "Cleared!", type: 'event' });
+      playSound('notification');
     } else if (playedCard.rank === Rank.Two) {
       setSpecialMessage({ text: "Reset!", type: 'event' });
+      playSound('notification');
     }
 
     if ((playedCard.rank === Rank.Two || playedCard.rank === Rank.Ten) && mpaRef.current) {
@@ -607,7 +623,6 @@ const App: React.FC = () => {
   };
 
   const initiatePlayAnimation = (cards: CardType[], player: Player, overrideStartRect?: DOMRect) => {
-    soundManager.playPlace();
     if (!mpaRef.current || cards.length === 0) {
         handlePlayComplete(cards, player);
         return;
@@ -643,6 +658,8 @@ const App: React.FC = () => {
     }
 
     setHiddenCardIds(prev => new Set([...prev, ...cards.map(c => c.id)]));
+    
+    playSound('card-place');
 
     setAnimationState({
       cards: cards,
@@ -660,6 +677,7 @@ const App: React.FC = () => {
     if (isSwap) {
         if (player.lastChance.filter(c => c !== null).length < 3) {
             setSpecialMessage({ text: "Fill Last Chance!", type: 'event' });
+            playSound('error');
             return;
         }
     }
@@ -670,6 +688,7 @@ const App: React.FC = () => {
             setTimeout(() => setIsInvalidPlay(false), 500);
             setSelectedCards([]);
             setSpecialMessage({ text: "CAN'T START WITH 2 OR 10", type: 'event' });
+            playSound('error');
             return;
         }
 
@@ -700,6 +719,7 @@ const App: React.FC = () => {
                 };
             });
             initiatePlayAnimation(playerChoice, player);
+            playSound('notification');
         } else { // AI wins
             const winningAI = bestAiChoice.player;
             setSpecialMessage({ text: `${winningAI.name} goes first!`, type: 'event' });
@@ -714,6 +734,7 @@ const App: React.FC = () => {
                 };
             });
             initiatePlayAnimation(bestAiChoice.cards!, winningAI);
+            playSound('notification');
         }
         return;
     }
@@ -724,6 +745,7 @@ const App: React.FC = () => {
       setIsInvalidPlay(true);
       setTimeout(() => setIsInvalidPlay(false), 500);
       setSelectedCards([]);
+      playSound('error');
       return;
     }
 
@@ -783,6 +805,7 @@ const App: React.FC = () => {
     if (!gameState || !gameState.isPlayerTurn || eatAnimationState || gameState.mpa.length === 0) return;
     
     setSpecialMessage({ text: "You Eat!", type: 'event' });
+    playSound('eat');
     
     const items: EatAnimationItem[] = gameState.mpa.map(card => ({
         card,
@@ -813,6 +836,7 @@ const App: React.FC = () => {
     if (playerHasValidMove(player, targetCard)) {
       setIsInvalidPlay(true);
       setTimeout(() => setIsInvalidPlay(false), 500);
+      playSound('error');
       return;
     }
 
@@ -839,12 +863,15 @@ const App: React.FC = () => {
         });
         return { ...prev, players: newPlayers };
     });
+    playSound('card-place');
   }
 
   const runShuffleSequence = async () => {
       const deckRect = deckRef.current?.getBoundingClientRect();
       const mpaRect = mpaRef.current?.getBoundingClientRect(); // Central location
       if (!deckRect || !mpaRect) return;
+
+      playSound('shuffle');
 
       const totalCards = 20; // 5 cards per pile x 4 piles
 
@@ -956,16 +983,13 @@ const App: React.FC = () => {
           return items;
       };
 
-      for (let i = 0; i < cycles; i++) {
-           setShuffleAnimationState(generateItems('split'));
-           soundManager.playShuffle();
-           await new Promise(r => setTimeout(r, 450));
+      // 1. Split to 4 Piles
+      setShuffleAnimationState(generateItems('split'));
+      await new Promise(r => setTimeout(r, (totalCards * 50) + 600)); // Wait for split
 
-           await new Promise(r => setTimeout(r, 50));
-
-           setShuffleAnimationState(generateItems('riffle'));
-           soundManager.playShuffle();
-           await new Promise(r => setTimeout(r, 550));
+      // 2. Chaotic Merge to Center
+      setShuffleAnimationState(generateItems('merge'));
+      await new Promise(r => setTimeout(r, (totalCards * 40) + 500)); // Wait for merge
 
       // 3. Return to Deck
       setShuffleAnimationState(generateItems('return'));
@@ -990,8 +1014,6 @@ const App: React.FC = () => {
         return;
     }
 
-    soundManager.playDeckTap();
-
     const playerLSRect = playerLastStandRef.current?.getBoundingClientRect();
     const playerLCRect = playerLastChanceRef.current?.getBoundingClientRect();
     const playerHandRect = playerHandRef.current?.getBoundingClientRect();
@@ -999,6 +1021,8 @@ const App: React.FC = () => {
     if (!playerLSRect || !playerLCRect || !playerHandRect) {
       return;
     }
+
+    playSound('deal');
 
     const animations: DealAnimationItem[] = [];
     let delay = 0;
@@ -1018,7 +1042,6 @@ const App: React.FC = () => {
             const rect = getPreciseSlotRect(`${player.isAI ? `opponent-${player.id}` : 'player'}-ls-slot-${i}`);
             if (rect) {
                 animations.push({ card: lsCardsToDeal[j][i], startRect, endRect: rect, delay, isFaceUp: false, id: `deal-ls-${lsCardsToDeal[j][i].id}` });
-                setTimeout(() => soundManager.playDeal(), delay);
             }
             delay += delayIncrement;
         }
@@ -1034,7 +1057,6 @@ const App: React.FC = () => {
             const rect = getPreciseSlotRect(`${player.isAI ? `opponent-${player.id}` : 'player'}-lc-slot-${i}`);
             if (rect) {
                 animations.push({ card: lcCardsToDeal[j][i], startRect, endRect: rect, delay, isFaceUp: true, id: `deal-lc-${lcCardsToDeal[j][i].id}` });
-                setTimeout(() => soundManager.playDeal(), delay);
             }
             delay += delayIncrement;
         }
@@ -1050,7 +1072,6 @@ const App: React.FC = () => {
             const rect = player.isAI ? document.getElementById(`opponent-${player.id}-hand-container`)?.getBoundingClientRect() : getHandCardFanRect(playerHandRect, i, 3, cardWidth, cardHeight);
             if (rect) {
               animations.push({ card: handCardsToDeal[j][i], startRect, endRect: rect, delay, isFaceUp: !player.isAI, id: `deal-hand-${handCardsToDeal[j][i].id}` });
-              setTimeout(() => soundManager.playDeal(), delay);
             }
             delay += delayIncrement;
         }
@@ -1132,6 +1153,7 @@ const App: React.FC = () => {
                 initiatePlayAnimation([cardToPlay], aiPlayer, startRect);
             } else {
                 setSpecialMessage({ text: `${aiPlayer.name} Busts!`, type: 'event' });
+                playSound('eat'); // Bust sound implies eating
                 setGameState(prev => {
                     if (!prev) return null;
                     const newPlayers = prev.players.map(p => {
@@ -1176,19 +1198,19 @@ const App: React.FC = () => {
             initiatePlayAnimation(play, aiPlayer);
         } else {
             setSpecialMessage({ text: `${aiPlayer.name} Eats!`, type: 'event' });
+            playSound('eat');
             const items: EatAnimationItem[] = gameState.mpa.map(card => ({
                 card,
                 startRect: mpaRef.current!.getBoundingClientRect(),
                 id: `eat-${card.id}`
             }));
             initiateEatAnimation(items, 'opponent');
-    soundManager.playEat();
             setGameState(prev => ({ ...prev!, mpa: [] }));
         }
       }, 1000);
       return () => clearTimeout(turnTimeout);
     }
-  }, [gameState, animationState, eatAnimationState, refillAnimationState, difficulty]);
+  }, [gameState, animationState, eatAnimationState, refillAnimationState, difficulty, playSound]);
   
   if (!gameState) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
@@ -1272,18 +1294,6 @@ const App: React.FC = () => {
                 <button onClick={() => { setIsRulesModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Game Rules</button>
                 <button onClick={() => { setIsStatisticsModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Statistics</button>
                 <div className="border-t border-gray-700 my-2"></div>
-                <div className="px-4 py-2 flex justify-between items-center text-white">
-                    <span>Sound</span>
-                    <button
-                        onClick={() => {
-                            soundManager.toggleMute();
-                            setIsMuted(soundManager.getMuted());
-                        }}
-                        className={`w-12 h-6 rounded-full flex items-center transition-colors ${!isMuted ? 'bg-green-500' : 'bg-gray-600'}`}
-                    >
-                        <span className={`block w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${!isMuted ? 'translate-x-6' : 'translate-x-1'}`} />
-                    </button>
-                </div>
                 <div className="px-4 py-2 flex justify-between items-center text-white">
                     <span>Cheatin'!</span>
                     <button
