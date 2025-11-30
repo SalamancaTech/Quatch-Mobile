@@ -16,6 +16,7 @@ import { LAYOUT_CONSTANTS } from './constants';
 import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, TouchSensor, DragEndEvent, DragStartEvent, DragOverEvent } from '@dnd-kit/core';
 import Card from './components/Card';
 import { DroppableArea } from './components/DroppableArea';
+import { soundManager } from './utils/soundManager';
 
 type AnimationState = {
   cards: CardType[];
@@ -117,6 +118,7 @@ const App: React.FC = () => {
   const [isStatisticsModalOpen, setIsStatisticsModalOpen] = useState(false);
   const [numOpponents] = useState(1);
   const [playerNames, setPlayerNames] = useState<string[]>(['Player 1', 'Opponent 1', 'Opponent 2', 'Opponent 3']);
+  const [isMuted, setIsMuted] = useState(soundManager.getMuted());
 
   // DND State
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -603,6 +605,7 @@ const App: React.FC = () => {
   };
 
   const initiatePlayAnimation = (cards: CardType[], player: Player, overrideStartRect?: DOMRect) => {
+    soundManager.playPlace();
     if (!mpaRef.current || cards.length === 0) {
         handlePlayComplete(cards, player);
         return;
@@ -889,11 +892,13 @@ const App: React.FC = () => {
 
       for (let i = 0; i < cycles; i++) {
            setShuffleAnimationState(generateItems('split'));
+           soundManager.playShuffle();
            await new Promise(r => setTimeout(r, 450));
 
            await new Promise(r => setTimeout(r, 50));
 
            setShuffleAnimationState(generateItems('riffle'));
+           soundManager.playShuffle();
            await new Promise(r => setTimeout(r, 550));
 
            await new Promise(r => setTimeout(r, 150));
@@ -917,6 +922,8 @@ const App: React.FC = () => {
         runShuffleSequence();
         return;
     }
+
+    soundManager.playDeckTap();
 
     const playerLSRect = playerLastStandRef.current?.getBoundingClientRect();
     const playerLCRect = playerLastChanceRef.current?.getBoundingClientRect();
@@ -944,6 +951,7 @@ const App: React.FC = () => {
             const rect = getPreciseSlotRect(`${player.isAI ? `opponent-${player.id}` : 'player'}-ls-slot-${i}`);
             if (rect) {
                 animations.push({ card: lsCardsToDeal[j][i], startRect, endRect: rect, delay, isFaceUp: false, id: `deal-ls-${lsCardsToDeal[j][i].id}` });
+                setTimeout(() => soundManager.playDeal(), delay);
             }
             delay += delayIncrement;
         }
@@ -959,6 +967,7 @@ const App: React.FC = () => {
             const rect = getPreciseSlotRect(`${player.isAI ? `opponent-${player.id}` : 'player'}-lc-slot-${i}`);
             if (rect) {
                 animations.push({ card: lcCardsToDeal[j][i], startRect, endRect: rect, delay, isFaceUp: true, id: `deal-lc-${lcCardsToDeal[j][i].id}` });
+                setTimeout(() => soundManager.playDeal(), delay);
             }
             delay += delayIncrement;
         }
@@ -974,6 +983,7 @@ const App: React.FC = () => {
             const rect = player.isAI ? document.getElementById(`opponent-${player.id}-hand-container`)?.getBoundingClientRect() : getHandCardFanRect(playerHandRect, i, 3, cardWidth, cardHeight);
             if (rect) {
               animations.push({ card: handCardsToDeal[j][i], startRect, endRect: rect, delay, isFaceUp: !player.isAI, id: `deal-hand-${handCardsToDeal[j][i].id}` });
+              setTimeout(() => soundManager.playDeal(), delay);
             }
             delay += delayIncrement;
         }
@@ -1105,6 +1115,7 @@ const App: React.FC = () => {
                 id: `eat-${card.id}`
             }));
             initiateEatAnimation(items, 'opponent');
+    soundManager.playEat();
             setGameState(prev => ({ ...prev!, mpa: [] }));
         }
       }, 1000);
@@ -1194,6 +1205,18 @@ const App: React.FC = () => {
                 <button onClick={() => { setIsRulesModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Game Rules</button>
                 <button onClick={() => { setIsStatisticsModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Statistics</button>
                 <div className="border-t border-gray-700 my-2"></div>
+                <div className="px-4 py-2 flex justify-between items-center text-white">
+                    <span>Sound</span>
+                    <button
+                        onClick={() => {
+                            soundManager.toggleMute();
+                            setIsMuted(soundManager.getMuted());
+                        }}
+                        className={`w-12 h-6 rounded-full flex items-center transition-colors ${!isMuted ? 'bg-green-500' : 'bg-gray-600'}`}
+                    >
+                        <span className={`block w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${!isMuted ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                </div>
                 <div className="px-4 py-2 flex justify-between items-center text-white">
                     <span>Cheatin'!</span>
                     <button
