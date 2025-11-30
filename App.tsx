@@ -53,9 +53,11 @@ type ShuffleAnimationItem = {
     card: CardType | null; // null for back of card
     startRect: DOMRect;
     endRect: DOMRect;
-    animationType: 'shuffle-split' | 'shuffle-riffle';
+    animationType: 'shuffle-split' | 'shuffle-riffle' | 'shuffle-merge' | 'shuffle-return';
     delay: number;
     zIndex: number;
+    startRotation?: number;
+    endRotation?: number;
 };
 
 type SpecialEffectState = {
@@ -841,49 +843,113 @@ const App: React.FC = () => {
 
   const runShuffleSequence = async () => {
       const deckRect = deckRef.current?.getBoundingClientRect();
-      if (!deckRect) return;
+      const mpaRect = mpaRef.current?.getBoundingClientRect(); // Central location
+      if (!deckRect || !mpaRect) return;
 
-      const cycles = 3;
-      const cardsPerSide = 10;
+      const totalCards = 20; // 5 cards per pile x 4 piles
 
-      const generateItems = (phase: 'split' | 'riffle'): ShuffleAnimationItem[] => {
+      // --- Coordinate Calculations ---
+      const centerX = mpaRect.left + mpaRect.width / 2 - deckRect.width / 2;
+      const centerY = mpaRect.top + mpaRect.height / 2 - deckRect.height / 2;
+
+      // Offsets for the 4 piles surrounding the center (B-style)
+      const offset = 120; // Distance from center
+      const pilePositions = [
+          { x: centerX - offset, y: centerY - offset }, // Top-Left
+          { x: centerX + offset, y: centerY - offset }, // Top-Right
+          { x: centerX - offset, y: centerY + offset }, // Bottom-Left
+          { x: centerX + offset, y: centerY + offset }, // Bottom-Right
+      ];
+
+      // Keep track of card locations and rotations
+      let currentRects = Array(totalCards).fill(deckRect);
+      let currentRotations = Array(totalCards).fill(0);
+      let pileAssignments = Array(totalCards).fill(0); // Which pile (0-3) each card belongs to
+
+      const generateItems = (phase: 'split' | 'merge' | 'return'): ShuffleAnimationItem[] => {
           const items: ShuffleAnimationItem[] = [];
-          const leftOffset = -60;
-          const rightOffset = 60;
 
-          for (let i = 0; i < cardsPerSide * 2; i++) {
-              const isLeft = i < cardsPerSide;
-              const stackIndex = isLeft ? i : i - cardsPerSide;
+          if (phase === 'split') {
+              for (let i = 0; i < totalCards; i++) {
+                  const pileIndex = i % 4; // Distribute round-robin
+                  pileAssignments[i] = pileIndex;
 
-              const verticalOffset = stackIndex * -0.5;
-              const horizontalRandom = (Math.random() - 0.5) * 4;
+                  const targetPos = pilePositions[pileIndex];
+                  // Add slight scatter within the pile
+                  const scatterX = (Math.random() - 0.5) * 10;
+                  const scatterY = (Math.random() - 0.5) * 10;
 
-              const centerRect = new DOMRect(deckRect.left + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
-              const leftRect = new DOMRect(deckRect.left + leftOffset + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
-              const rightRect = new DOMRect(deckRect.left + rightOffset + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
+                  const endRect = new DOMRect(targetPos.x + scatterX, targetPos.y + scatterY, deckRect.width, deckRect.height);
+                  currentRects[i] = endRect;
 
-              if (phase === 'split') {
+                  const endRotation = (Math.random() - 0.5) * 45; // Chaotic rotation
+                  currentRotations[i] = endRotation;
+
                   items.push({
                       id: `shuffle-split-${i}`,
                       card: null,
-                      startRect: centerRect,
-                      endRect: isLeft ? leftRect : rightRect,
+                      startRect: deckRect,
+                      endRect: endRect,
                       animationType: 'shuffle-split',
-                      delay: stackIndex * 10,
-                      zIndex: stackIndex
+                      delay: i * 50, // Sequential fly-out
+                      zIndex: i,
+                      startRotation: 0,
+                      endRotation: endRotation
                   });
-              } else {
-                  const isLeftFirst = Math.random() > 0.5;
-                  const riffleDelay = (stackIndex * 20) + (isLeft === isLeftFirst ? 0 : 10);
+              }
+          } else if (phase === 'merge') {
+              // Chaotic Merge to Center
+              // Randomize the order in which they fly to center
+              const indices = Array.from({length: totalCards}, (_, i) => i);
+              const shuffledIndices = indices.sort(() => Math.random() - 0.5);
+
+              for (let i = 0; i < totalCards; i++) {
+                  const cardIndex = shuffledIndices[i];
+
+                  const startRect = currentRects[cardIndex];
+                  // Target is exact center, maybe slight pile imperfection
+                  const centerScatterX = (Math.random() - 0.5) * 5;
+                  const centerScatterY = (Math.random() - 0.5) * 5;
+                  const endRect = new DOMRect(centerX + centerScatterX, centerY + centerScatterY, deckRect.width, deckRect.height);
+                  currentRects[cardIndex] = endRect;
+
+                  const startRotation = currentRotations[cardIndex];
+                  // Spin wildy on way to center, land mostly flat but messy
+                  const endRotation = (Math.random() - 0.5) * 180;
+                  currentRotations[cardIndex] = endRotation;
 
                   items.push({
-                      id: `shuffle-riffle-${i}`,
+                      id: `shuffle-merge-${cardIndex}`,
                       card: null,
-                      startRect: isLeft ? leftRect : rightRect,
-                      endRect: centerRect,
-                      animationType: 'shuffle-riffle',
-                      delay: riffleDelay,
-                      zIndex: stackIndex + (isLeft ? 0 : 100)
+                      startRect: startRect,
+                      endRect: endRect,
+                      animationType: 'shuffle-merge',
+                      delay: i * 40, // Rapid fire merge
+                      zIndex: i, // New stack order based on arrival
+                      startRotation: startRotation,
+                      endRotation: endRotation
+                  });
+              }
+          } else { // Return
+              // Move entire stack back to deck
+              for (let i = 0; i < totalCards; i++) {
+                  const startRect = currentRects[i];
+
+                  // Return to deck
+                  const endRect = deckRect;
+                  const startRotation = currentRotations[i];
+                  const endRotation = 0; // Back to neat stack
+
+                  items.push({
+                      id: `shuffle-return-${i}`,
+                      card: null,
+                      startRect: startRect,
+                      endRect: endRect,
+                      animationType: 'shuffle-return',
+                      delay: i * 20, // Very tight delay for "solid stack with trail" effect
+                      zIndex: i,
+                      startRotation: startRotation,
+                      endRotation: endRotation
                   });
               }
           }
@@ -901,8 +967,9 @@ const App: React.FC = () => {
            soundManager.playShuffle();
            await new Promise(r => setTimeout(r, 550));
 
-           await new Promise(r => setTimeout(r, 150));
-      }
+      // 3. Return to Deck
+      setShuffleAnimationState(generateItems('return'));
+      await new Promise(r => setTimeout(r, (totalCards * 20) + 600)); // Wait for return
 
       setShuffleAnimationState(null);
       setGameState(prev => ({ ...prev!, deck: shuffleDeck([...prev!.deck]) }));
@@ -1299,6 +1366,8 @@ const App: React.FC = () => {
                 isFaceUp={false}
                 onAnimationEnd={() => {}}
                 difficulty={difficulty}
+                startRotation={anim.startRotation}
+                endRotation={anim.endRotation}
             />
         ))}
         {refillAnimationState && refillAnimationState.items.map((anim, index) => (
