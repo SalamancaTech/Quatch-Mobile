@@ -948,7 +948,6 @@ const App: React.FC = () => {
                       startRotation: startRotation,
                       endRotation: endRotation
                   });
-              }
           } else { // Return
               // Move entire stack back to deck
               for (let i = 0; i < totalCards; i++) {
