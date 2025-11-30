@@ -270,6 +270,7 @@ const App: React.FC = () => {
         if (activeData.type === 'lc-card' && (over.id === 'player-hand-drop-zone' || overData.type === 'hand-card')) {
             const lcIndex = activeData.index;
             const lcCard = player.lastChance[lcIndex];
+            if (!lcCard) return;
 
             setGameState(prev => {
                 if (!prev) return null;
@@ -277,7 +278,9 @@ const App: React.FC = () => {
                     if (p.id === player.id) {
                         const newLC = [...p.lastChance];
                         const newHand = [...p.hand, lcCard].sort((a,b) => a.value - b.value);
-                        newLC.splice(lcIndex, 1);
+
+                        // Replace with null instead of splice to preserve position
+                        newLC[lcIndex] = null;
 
                         return { ...p, hand: newHand, lastChance: newLC };
                     }
@@ -340,11 +343,11 @@ const App: React.FC = () => {
       const player = gameState.players.find(p => !p.isAI)!;
       
       const isClickedInHand = player.hand.some(c => c.id === card.id);
-      const isClickedInLC = player.lastChance.some(c => c.id === card.id);
+      const isClickedInLC = player.lastChance.some(c => c && c.id === card.id);
 
       const selected = selectedCards.length === 1 ? selectedCards[0] : null;
       const isSelectedInHand = selected && player.hand.some(c => c.id === selected.id);
-      const isSelectedInLC = selected && player.lastChance.some(c => c.id === selected.id);
+      const isSelectedInLC = selected && player.lastChance.some(c => c && c.id === selected.id);
 
       if (!selected || (isSelectedInHand && isClickedInHand) || (isSelectedInLC && isClickedInLC)) {
         if (selected?.id === card.id) {
@@ -365,11 +368,18 @@ const App: React.FC = () => {
                 players: prev.players.map(p => {
                     if (p.id === playerId) {
                         const isSelectedInHand = p.hand.some(c => c.id === card1.id);
-
                         const [cardForHand, cardForLC] = isSelectedInHand ? [card2, card1] : [card1, card2];
                         
                         const newHand = p.hand.filter(c => c.id !== (isSelectedInHand ? card1.id : card2.id)).concat(cardForHand).sort((a,b) => a.value - b.value);
-                        const newLastChance = p.lastChance.filter(c => c.id !== (isSelectedInHand ? card2.id : card1.id)).concat(cardForLC);
+
+                        // Find the index of the LC card to replace it in-place
+                        const lcCardToReplace = isSelectedInHand ? card2 : card1;
+                        const lcIndex = p.lastChance.findIndex(c => c && c.id === lcCardToReplace.id);
+
+                        const newLastChance = [...p.lastChance];
+                        if (lcIndex !== -1) {
+                            newLastChance[lcIndex] = cardForLC;
+                        }
                         
                         return { ...p, hand: newHand, lastChance: newLastChance };
                     }
@@ -440,7 +450,9 @@ const App: React.FC = () => {
         };
         
         const playerAfterUpdate = stateAfterPlay.players.find(p => p.id === playerWhoPlayed.id)!;
-        const playerHasWon = playerAfterUpdate.hand.length === 0 && playerAfterUpdate.lastChance.length === 0 && playerAfterUpdate.lastStand.length === 0;
+        const playerHasWon = playerAfterUpdate.hand.length === 0 &&
+                             playerAfterUpdate.lastChance.every(c => c === null) &&
+                             playerAfterUpdate.lastStand.every(c => c === null);
 
         if (playerHasWon) {
             return {
@@ -562,7 +574,7 @@ const App: React.FC = () => {
         players: prevState.players.map(p => p.id === playerWhoPlayed.id ? { 
             ...p, 
             hand: p.hand.filter(c => !playedCards.some(sc => sc.id === c.id)), 
-            lastChance: p.lastChance.filter(c => !playedCards.some(sc => sc.id === c.id)) 
+            lastChance: p.lastChance.map(c => c && playedCards.some(sc => sc.id === c.id) ? null : c)
         } : p),
         mpa: [...prevState.mpa, ...playedCards]
       };
@@ -626,7 +638,7 @@ const App: React.FC = () => {
     const player = gameState.players.find(p => !p.isAI)!;
 
     if (isSwap) {
-        if (player.lastChance.filter(c => c).length < 3) {
+        if (player.lastChance.filter(c => c !== null).length < 3) {
             setSpecialMessage({ text: "Fill Last Chance!", type: 'event' });
             return;
         }
@@ -702,7 +714,7 @@ const App: React.FC = () => {
                 return {
                     ...p,
                     hand: p.hand.filter(c => !cardsToPlay.some(sc => sc.id === c.id)),
-                    lastChance: p.lastChance.filter(c => !cardsToPlay.some(sc => sc.id === c.id))
+                    lastChance: p.lastChance.map(c => c && cardsToPlay.some(sc => sc.id === c.id) ? null : c)
                 };
             }
             return p;
@@ -772,7 +784,7 @@ const App: React.FC = () => {
     
     const player = gameState.players.find(p => !p.isAI)!;
     
-    if (player.hand.length === 0 && player.lastChance.length === 0) {
+    if (player.hand.length === 0 && player.lastChance.every(c => c === null)) {
         return;
     }
 
@@ -790,14 +802,14 @@ const App: React.FC = () => {
   const handleLastStandCardSelect = (card: CardType, index: number) => {
     if (!gameState || !gameState.isPlayerTurn || animationState || eatAnimationState) return;
     const player = gameState.players.find(p => !p.isAI)!;
-    if (player.hand.length > 0 || player.lastChance.length > 0) return;
+    if (player.hand.length > 0 || player.lastChance.some(c => c !== null)) return;
     
     setGameState(prev => {
         if (!prev) return null;
         const newPlayers = prev.players.map(p => {
             if (p.id === player.id) {
                 const newLastStand = [...p.lastStand];
-                newLastStand.splice(index, 1);
+                newLastStand[index] = null;
 
                 const newHand = [...p.hand, card].sort((a,b) => a.value - b.value);
 
@@ -1007,9 +1019,9 @@ const App: React.FC = () => {
         
         const play = getAIPlay(aiPlayer, targetCard, gameState.mpa.length, gameState.deck.length, difficulty);
 
-        if (aiPlayer.hand.length === 0 && aiPlayer.lastChance.length === 0) {
+        if (aiPlayer.hand.length === 0 && aiPlayer.lastChance.every(c => c === null)) {
             const cardToPlay = play[0];
-            const cardIndex = aiPlayer.lastStand.findIndex(c => c.id === cardToPlay.id);
+            const cardIndex = aiPlayer.lastStand.findIndex(c => c && c.id === cardToPlay.id);
 
             const startRect = opponentLastStandRef.current?.getBoundingClientRect();
             if (isValidPlay([cardToPlay], targetCard, aiPlayer)) {
@@ -1018,7 +1030,7 @@ const App: React.FC = () => {
                     const newPlayers = prev.players.map(p => {
                         if (p.id === aiPlayer.id) {
                             const newLastStand = [...p.lastStand];
-                            if (cardIndex > -1) newLastStand.splice(cardIndex, 1);
+                            if (cardIndex > -1) newLastStand[cardIndex] = null;
                             return { ...p, lastStand: newLastStand };
                         }
                         return p;
@@ -1033,7 +1045,7 @@ const App: React.FC = () => {
                     const newPlayers = prev.players.map(p => {
                         if (p.id === aiPlayer.id) {
                             const newLastStand = [...p.lastStand];
-                            if (cardIndex > -1) newLastStand.splice(cardIndex, 1);
+                            if (cardIndex > -1) newLastStand[cardIndex] = null;
                             return { ...p, lastStand: newLastStand };
                         }
                         return p;
@@ -1062,7 +1074,7 @@ const App: React.FC = () => {
                         return {
                             ...p,
                             hand: p.hand.filter(c => !play.some(sc => sc.id === c.id)),
-                            lastChance: p.lastChance.filter(c => !play.some(sc => sc.id === c.id))
+                            lastChance: p.lastChance.map(c => c && play.some(sc => sc.id === c.id) ? null : c)
                         };
                     }
                     return p;
