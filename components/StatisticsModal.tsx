@@ -49,8 +49,8 @@ const StatisticsModal: React.FC<StatisticsModalProps> = ({ gameState, humanPlaye
         <h3 className="col-span-2 font-bold text-lg text-center mb-1">{humanPlayer.name}</h3>
         <StatRow label="Cards Eaten" value={humanPlayer.cardsEaten} />
         <StatRow label="Cards in Hand" value={humanPlayer.hand.length} />
-        <StatRow label="Last Chance" value={humanPlayer.lastChance.length} />
-        <StatRow label="Last Stand" value={humanPlayer.lastStand.length} />
+        <StatRow label="Last Chance" value={humanPlayer.lastChance.filter(c => c !== null).length} />
+        <StatRow label="Last Stand" value={humanPlayer.lastStand.filter(c => c !== null).length} />
         
         {aiPlayers.map((aiPlayer) => (
           <React.Fragment key={aiPlayer.id}>
@@ -58,8 +58,8 @@ const StatisticsModal: React.FC<StatisticsModalProps> = ({ gameState, humanPlaye
             <h3 className="col-span-2 font-bold text-lg text-center mb-1">{aiPlayer.name}</h3>
             <StatRow label="Cards Eaten" value={aiPlayer.cardsEaten} />
             <StatRow label="Cards in Hand" value={aiPlayer.hand.length} />
-            <StatRow label="Last Chance" value={aiPlayer.lastChance.length} />
-            <StatRow label="Last Stand" value={aiPlayer.lastStand.length} />
+            <StatRow label="Last Chance" value={aiPlayer.lastChance.filter(c => c !== null).length} />
+            <StatRow label="Last Stand" value={aiPlayer.lastStand.filter(c => c !== null).length} />
           </React.Fragment>
         ))}
       </div>

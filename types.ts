@@ -33,8 +33,8 @@ export interface Player {
   id: number;
   name: string;
   hand: Card[];
-  lastChance: Card[];
-  lastStand: Card[];
+  lastChance: (Card | null)[];
+  lastStand: (Card | null)[];
   isAI: boolean;
   cardsEaten: number;
 }

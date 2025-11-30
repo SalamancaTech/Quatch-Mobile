@@ -121,7 +121,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                           <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-1 left-1 md:top-2 md:left-2 z-0">
                                {player.lastStand[i] && (
                                   <Card
-                                      card={player.lastStand[i]}
+                                      card={player.lastStand[i]!}
                                       isFaceUp={false}
                                       difficulty={difficulty}
                                   />
@@ -131,7 +131,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                           <div ref={lastChanceRef} id={`${typePrefix}-lc-slot-${i}`} className="absolute inset-0 z-10">
                               {player.lastChance[i] && (
                                   <Card
-                                      card={player.lastChance[i]}
+                                      card={player.lastChance[i]!}
                                       isFaceUp={true}
                                       difficulty={difficulty}
                                   />
@@ -168,7 +168,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                 <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-1 left-1 md:top-2 md:left-2 z-0">
                   {player.lastStand[i] && (
                     <Card
-                      card={player.lastStand[i]}
+                      card={player.lastStand[i]!}
                       isFaceUp={false}
                       difficulty={difficulty}
                     />
@@ -177,7 +177,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                 <div ref={lastChanceRef} id={`${typePrefix}-lc-slot-${i}`} className="absolute inset-0 z-10">
                   {player.lastChance[i] && (
                     <Card
-                      card={player.lastChance[i]}
+                      card={player.lastChance[i]!}
                       isFaceUp={true}
                       difficulty={difficulty}
                     />
@@ -192,7 +192,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
   }
 
   // Player's View
-  const isInLastStand = isHuman && isCurrentPlayer && player.hand.length === 0 && player.lastChance.length === 0;
+  const isInLastStand = isHuman && isCurrentPlayer && player.hand.length === 0 && player.lastChance.every(c => c === null);
 
   return (
     // Use flex-col-reverse to have DOM order be Hand -> Table, but visual order be Table -> Hand
@@ -247,40 +247,40 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                       <div ref={lastStandRef} id={`${typePrefix}-ls-slot-${i}`} className="absolute inset-0 top-[7px] left-1 md:left-2 z-0">
                               {player.lastStand[i] && (
                               <Card
-                                  card={player.lastStand[i]}
+                                  card={player.lastStand[i]!}
                                   isFaceUp={false}
-                                  onClick={isInLastStand && onLastStandCardSelect ? () => onLastStandCardSelect(player.lastStand[i], i) : undefined}
+                                  onClick={isInLastStand && onLastStandCardSelect ? () => onLastStandCardSelect(player.lastStand[i]!, i) : undefined}
                                   className={isInLastStand ? 'cursor-pointer hover:scale-105 hover:-translate-y-2 ring-2 ring-yellow-400' : ''}
                                   difficulty={difficulty}
                               />
                               )}
                       </div>
                           {/* Last Chance (Top/Front) */}
-                      <div ref={lastChanceRef} id={`${typePrefix}-lc-slot-${i}`} className={`absolute inset-0 z-10 ${player.lastChance.length === 0 ? 'pointer-events-none' : ''}`}>
+                      <div ref={lastChanceRef} id={`${typePrefix}-lc-slot-${i}`} className={`absolute inset-0 z-10 ${player.lastChance.every(c => c === null) ? 'pointer-events-none' : ''}`}>
                           {player.lastChance[i] ? (
                               isHuman && currentStage === GameStage.SWAP ? (
                                   <DraggableCard
-                                      id={`lc-card-${player.lastChance[i].id}`}
-                                      data={{ type: 'lc-card', index: i, card: player.lastChance[i] }}
+                                      id={`lc-card-${player.lastChance[i]!.id}`}
+                                      data={{ type: 'lc-card', index: i, card: player.lastChance[i]! }}
                                       className="w-full h-full"
                                   >
                                       <Card
-                                          card={player.lastChance[i]}
+                                          card={player.lastChance[i]!}
                                           isFaceUp={true}
-                                          isSelected={isHuman && selectedCards.some(sc => sc.id === player.lastChance[i].id)}
-                                          onClick={isHuman && currentStage === GameStage.SWAP ? () => onCardSelect(player.lastChance[i]) : undefined}
+                                          isSelected={isHuman && selectedCards.some(sc => sc.id === player.lastChance[i]!.id)}
+                                          onClick={isHuman && currentStage === GameStage.SWAP ? () => onCardSelect(player.lastChance[i]!) : undefined}
                                           difficulty={difficulty}
                                       />
                                   </DraggableCard>
                               ) : (
                                   <Card
-                                      card={player.lastChance[i]}
+                                      card={player.lastChance[i]!}
                                       isFaceUp={true}
-                                      isSelected={isHuman && selectedCards.some(sc => sc.id === player.lastChance[i].id)}
+                                      isSelected={isHuman && selectedCards.some(sc => sc.id === player.lastChance[i]!.id)}
                                       onClick={
                                       isHuman && (
                                           (isCurrentPlayer && currentStage === GameStage.PLAY && player.hand.length === 0)
-                                      ) ? () => onCardSelect(player.lastChance[i]) : undefined
+                                      ) ? () => onCardSelect(player.lastChance[i]!) : undefined
                                       }
                                       difficulty={difficulty}
                                   />
