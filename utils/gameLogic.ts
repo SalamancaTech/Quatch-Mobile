@@ -62,8 +62,8 @@ export const initializeGame = (playerNames: string[]): GameState => {
         id: index,
         name: name,
         hand: [],
-        lastChance: [],
-        lastStand: [],
+        lastChance: [null, null, null],
+        lastStand: [null, null, null],
         isAI: index !== 0, // Player 0 is the human
         cardsEaten: 0,
     }));
@@ -96,15 +96,18 @@ export const isValidPlay = (selectedCards: Card[], targetCard: Card | undefined,
     // If it's the final play to win, it cannot be a special card.
     if (player) {
         const isFromHand = player.hand.some(c => selectedCards.some(sc => sc.id === c.id));
-        const isFromLastChance = player.lastChance.some(c => selectedCards.some(sc => sc.id === c.id));
+        const isFromLastChance = player.lastChance.some(c => c && selectedCards.some(sc => sc.id === c.id));
+
+        const lastChanceCount = player.lastChance.filter(c => c !== null).length;
+        const lastStandCount = player.lastStand.filter(c => c !== null).length;
 
         let isWinningPlay = false;
         if (isFromHand) {
-            isWinningPlay = player.hand.length === selectedCards.length && player.lastChance.length === 0 && player.lastStand.length === 0;
+            isWinningPlay = player.hand.length === selectedCards.length && lastChanceCount === 0 && lastStandCount === 0;
         } else if (isFromLastChance) {
-            isWinningPlay = player.hand.length === 0 && player.lastChance.length === selectedCards.length && player.lastStand.length === 0;
+            isWinningPlay = player.hand.length === 0 && lastChanceCount === selectedCards.length && lastStandCount === 0;
         } else { // Implicitly Last Stand
-            isWinningPlay = player.hand.length === 0 && player.lastChance.length === 0 && player.lastStand.length === selectedCards.length;
+            isWinningPlay = player.hand.length === 0 && lastChanceCount === 0 && lastStandCount === selectedCards.length;
         }
         
         if (isWinningPlay && (playCard.rank === Rank.Two || playCard.rank === Rank.Ten)) {
@@ -126,12 +129,14 @@ export const isValidPlay = (selectedCards: Card[], targetCard: Card | undefined,
 };
 
 export const playerHasValidMove = (player: Player, targetCard: Card | undefined): boolean => {
+    const lastChanceCount = player.lastChance.filter(c => c !== null).length;
+
     // During last stand, the player's only move is to pick a card. They cannot choose to eat.
-    if (player.hand.length === 0 && player.lastChance.length === 0) {
+    if (player.hand.length === 0 && lastChanceCount === 0) {
         return true; 
     }
 
-    const sourcePile = player.hand.length > 0 ? player.hand : player.lastChance;
+    const sourcePile = (player.hand.length > 0 ? player.hand : player.lastChance).filter((c): c is Card => c !== null);
 
     // Check for single card plays
     for (const card of sourcePile) {
@@ -179,7 +184,7 @@ export const getAIStartingCard = (player: Player): Card[] => {
 
 const getAllPossiblePlays = (player: Player, targetCard: Card | undefined, difficulty: Difficulty): Card[][] => {
     const possiblePlays: Card[][] = [];
-    const sourcePile = player.hand.length > 0 ? player.hand : player.lastChance;
+    const sourcePile = (player.hand.length > 0 ? player.hand : player.lastChance).filter((c): c is Card => c !== null);
 
     // Group cards by rank
     const rankGroups = sourcePile.reduce((acc, card) => {
@@ -211,10 +216,24 @@ const getAllPossiblePlays = (player: Player, targetCard: Card | undefined, diffi
 
 
 export const getAIPlay = (player: Player, targetCard: Card | undefined, mpaSize: number, deckSize: number, difficulty: Difficulty): Card[] => {
-    if (player.hand.length === 0 && player.lastChance.length === 0 && player.lastStand.length > 0) {
-        // Last Stand phase: AI must pick a random card, logic is the same for all difficulties
-        const randomIndex = Math.floor(Math.random() * player.lastStand.length);
-        return [player.lastStand[randomIndex]];
+    const lastChanceCount = player.lastChance.filter(c => c !== null).length;
+    const lastStandCount = player.lastStand.filter(c => c !== null).length;
+
+    if (player.hand.length === 0 && lastChanceCount === 0 && lastStandCount > 0) {
+        // Last Stand phase: AI must pick a random card.
+        // We need to pick from available slots.
+        const availableIndices = player.lastStand
+            .map((c, i) => c !== null ? i : -1)
+            .filter(i => i !== -1);
+
+        if (availableIndices.length === 0) return []; // Should not happen if count > 0
+
+        const randomIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+        // The calling code expects a Card[], but needs to know which card was picked.
+        // The calling code in App.tsx finds the card in lastStand array to remove it.
+        // So returning the card object is sufficient.
+        const pickedCard = player.lastStand[randomIndex];
+        return pickedCard ? [pickedCard] : [];
     }
 
     const playableCards = getAllPossiblePlays(player, targetCard, difficulty);
