@@ -52,7 +52,7 @@ type ShuffleAnimationItem = {
     card: CardType | null; // null for back of card
     startRect: DOMRect;
     endRect: DOMRect;
-    animationType: 'shuffle-split' | 'shuffle-riffle';
+    animationType: 'shuffle-split' | 'shuffle-riffle' | 'shuffle-merge' | 'shuffle-return';
     delay: number;
     zIndex: number;
     startRotation?: number;
@@ -840,97 +840,111 @@ const App: React.FC = () => {
 
   const runShuffleSequence = async () => {
       const deckRect = deckRef.current?.getBoundingClientRect();
-      if (!deckRect) return;
+      const mpaRect = mpaRef.current?.getBoundingClientRect(); // Central location
+      if (!deckRect || !mpaRect) return;
 
-      const cycles = 3;
-      const cardsPerSide = 10;
-      const totalCards = cardsPerSide * 2;
+      const totalCards = 20; // 5 cards per pile x 4 piles
 
-      // Keep track of rotation state between phases for smoothness
+      // --- Coordinate Calculations ---
+      const centerX = mpaRect.left + mpaRect.width / 2 - deckRect.width / 2;
+      const centerY = mpaRect.top + mpaRect.height / 2 - deckRect.height / 2;
+
+      // Offsets for the 4 piles surrounding the center (B-style)
+      const offset = 120; // Distance from center
+      const pilePositions = [
+          { x: centerX - offset, y: centerY - offset }, // Top-Left
+          { x: centerX + offset, y: centerY - offset }, // Top-Right
+          { x: centerX - offset, y: centerY + offset }, // Bottom-Left
+          { x: centerX + offset, y: centerY + offset }, // Bottom-Right
+      ];
+
+      // Keep track of card locations and rotations
+      let currentRects = Array(totalCards).fill(deckRect);
       let currentRotations = Array(totalCards).fill(0);
+      let pileAssignments = Array(totalCards).fill(0); // Which pile (0-3) each card belongs to
 
-      const generateItems = (phase: 'split' | 'riffle'): ShuffleAnimationItem[] => {
+      const generateItems = (phase: 'split' | 'merge' | 'return'): ShuffleAnimationItem[] => {
           const items: ShuffleAnimationItem[] = [];
-          const leftOffset = -60;
-          const rightOffset = 60;
 
           if (phase === 'split') {
               for (let i = 0; i < totalCards; i++) {
-                  const isLeft = i < cardsPerSide;
-                  const stackIndex = isLeft ? i : i - cardsPerSide;
+                  const pileIndex = i % 4; // Distribute round-robin
+                  pileAssignments[i] = pileIndex;
 
-                  const verticalOffset = stackIndex * -0.5;
-                  const horizontalRandom = (Math.random() - 0.5) * 6; // Increased chaos
+                  const targetPos = pilePositions[pileIndex];
+                  // Add slight scatter within the pile
+                  const scatterX = (Math.random() - 0.5) * 10;
+                  const scatterY = (Math.random() - 0.5) * 10;
 
-                  const centerRect = new DOMRect(deckRect.left + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
-                  const leftRect = new DOMRect(deckRect.left + leftOffset + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
-                  const rightRect = new DOMRect(deckRect.left + rightOffset + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
+                  const endRect = new DOMRect(targetPos.x + scatterX, targetPos.y + scatterY, deckRect.width, deckRect.height);
+                  currentRects[i] = endRect;
 
-                  // Random rotation for the split piles
-                  const endRotation = (Math.random() - 0.5) * 15;
+                  const endRotation = (Math.random() - 0.5) * 45; // Chaotic rotation
                   currentRotations[i] = endRotation;
 
                   items.push({
                       id: `shuffle-split-${i}`,
                       card: null,
-                      startRect: centerRect,
-                      endRect: isLeft ? leftRect : rightRect,
+                      startRect: deckRect,
+                      endRect: endRect,
                       animationType: 'shuffle-split',
-                      delay: stackIndex * 10,
-                      zIndex: stackIndex,
-                      startRotation: 0, // Always start split from flat deck
+                      delay: i * 30, // Sequential fly-out
+                      zIndex: i,
+                      startRotation: 0,
                       endRotation: endRotation
                   });
               }
-          } else { // Riffle
-             // Create two stacks of indices to simulate the split piles
-             const leftStack = Array.from({length: cardsPerSide}, (_, i) => i);
-             const rightStack = Array.from({length: cardsPerSide}, (_, i) => i + cardsPerSide);
+          } else if (phase === 'merge') {
+              // Chaotic Merge to Center
+              // Randomize the order in which they fly to center
+              const indices = Array.from({length: totalCards}, (_, i) => i);
+              const shuffledIndices = indices.sort(() => Math.random() - 0.5);
 
-             let currentZ = 0;
-             const riffleOrder: { originalIndex: number, zIndex: number, delay: number }[] = [];
+              for (let i = 0; i < totalCards; i++) {
+                  const cardIndex = shuffledIndices[i];
 
-             // Randomly interleave the stacks
-             while (leftStack.length > 0 || rightStack.length > 0) {
-                 // Decide which stack to take from (weighted random or simple coin flip)
-                 const takeFromLeft = leftStack.length > 0 && (rightStack.length === 0 || Math.random() > 0.5);
+                  const startRect = currentRects[cardIndex];
+                  // Target is exact center, maybe slight pile imperfection
+                  const centerScatterX = (Math.random() - 0.5) * 5;
+                  const centerScatterY = (Math.random() - 0.5) * 5;
+                  const endRect = new DOMRect(centerX + centerScatterX, centerY + centerScatterY, deckRect.width, deckRect.height);
+                  currentRects[cardIndex] = endRect;
 
-                 // Take a small chunk of cards (1-3) to simulate real riffle
-                 const chunkSize = Math.min(Math.floor(Math.random() * 3) + 1, takeFromLeft ? leftStack.length : rightStack.length);
-
-                 for (let k = 0; k < chunkSize; k++) {
-                     const originalIndex = takeFromLeft ? leftStack.shift()! : rightStack.shift()!;
-                     riffleOrder.push({
-                         originalIndex,
-                         zIndex: currentZ++,
-                         delay: currentZ * 15 // Sequential delay based on new stack order
-                     });
-                 }
-             }
-
-             // Build animation items based on the determined riffle order
-             for (const { originalIndex, zIndex, delay } of riffleOrder) {
-                  const isLeft = originalIndex < cardsPerSide;
-                  const stackIndex = isLeft ? originalIndex : originalIndex - cardsPerSide;
-
-                  const verticalOffset = stackIndex * -0.5;
-                  const horizontalRandom = (Math.random() - 0.5) * 6;
-
-                  const centerRect = new DOMRect(deckRect.left + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
-                  const leftRect = new DOMRect(deckRect.left + leftOffset + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
-                  const rightRect = new DOMRect(deckRect.left + rightOffset + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
-
-                  const startRotation = currentRotations[originalIndex];
-                  const endRotation = (Math.random() - 0.5) * 5; // Settle back to near-zero with slight imperfection
+                  const startRotation = currentRotations[cardIndex];
+                  // Spin wildy on way to center, land mostly flat but messy
+                  const endRotation = (Math.random() - 0.5) * 180;
+                  currentRotations[cardIndex] = endRotation;
 
                   items.push({
-                      id: `shuffle-riffle-${originalIndex}`,
+                      id: `shuffle-merge-${cardIndex}`,
                       card: null,
-                      startRect: isLeft ? leftRect : rightRect,
-                      endRect: centerRect,
-                      animationType: 'shuffle-riffle',
-                      delay: delay,
-                      zIndex: zIndex,
+                      startRect: startRect,
+                      endRect: endRect,
+                      animationType: 'shuffle-merge',
+                      delay: i * 20, // Rapid fire merge
+                      zIndex: i, // New stack order based on arrival
+                      startRotation: startRotation,
+                      endRotation: endRotation
+                  });
+              }
+          } else { // Return
+              // Move entire stack back to deck
+              for (let i = 0; i < totalCards; i++) {
+                  const startRect = currentRects[i];
+
+                  // Return to deck
+                  const endRect = deckRect;
+                  const startRotation = currentRotations[i];
+                  const endRotation = 0; // Back to neat stack
+
+                  items.push({
+                      id: `shuffle-return-${i}`,
+                      card: null,
+                      startRect: startRect,
+                      endRect: endRect,
+                      animationType: 'shuffle-return',
+                      delay: i * 10, // Very tight delay for "solid stack with trail" effect
+                      zIndex: i,
                       startRotation: startRotation,
                       endRotation: endRotation
                   });
@@ -939,17 +953,17 @@ const App: React.FC = () => {
           return items;
       };
 
-      for (let i = 0; i < cycles; i++) {
-           setShuffleAnimationState(generateItems('split'));
-           await new Promise(r => setTimeout(r, 450));
+      // 1. Split to 4 Piles
+      setShuffleAnimationState(generateItems('split'));
+      await new Promise(r => setTimeout(r, (totalCards * 30) + 400)); // Wait for split
 
-           await new Promise(r => setTimeout(r, 50));
+      // 2. Chaotic Merge to Center
+      setShuffleAnimationState(generateItems('merge'));
+      await new Promise(r => setTimeout(r, (totalCards * 20) + 400)); // Wait for merge
 
-           setShuffleAnimationState(generateItems('riffle'));
-           await new Promise(r => setTimeout(r, (totalCards * 15) + 300)); // Wait for full riffle sequence
-
-           await new Promise(r => setTimeout(r, 150));
-      }
+      // 3. Return to Deck
+      setShuffleAnimationState(generateItems('return'));
+      await new Promise(r => setTimeout(r, (totalCards * 10) + 500)); // Wait for return
 
       setShuffleAnimationState(null);
       setGameState(prev => ({ ...prev!, deck: shuffleDeck([...prev!.deck]) }));

@@ -6,7 +6,7 @@ interface AnimatedCardProps {
   card: CardType;
   startRect: DOMRect;
   endRect: DOMRect;
-  animationType: 'play' | 'eat' | 'deal' | 'shuffle-split' | 'shuffle-riffle';
+  animationType: 'play' | 'eat' | 'deal' | 'shuffle-split' | 'shuffle-riffle' | 'shuffle-merge' | 'shuffle-return';
   onAnimationEnd: () => void;
   delay?: number;
   zIndex: number;
@@ -41,7 +41,7 @@ const AnimatedCard: React.FC<AnimatedCardProps> = ({ card, startRect, endRect, a
       animationDelay: `${delay}ms`,
     } as React.CSSProperties;
 
-  } else if (animationType === 'shuffle-split' || animationType === 'shuffle-riffle') {
+  } else if (animationType === 'shuffle-split' || animationType === 'shuffle-riffle' || animationType === 'shuffle-merge' || animationType === 'shuffle-return') {
     style = {
       position: 'fixed',
       top: `${startRect.top}px`,
@@ -79,6 +79,8 @@ const AnimatedCard: React.FC<AnimatedCardProps> = ({ card, startRect, endRect, a
   if (animationType === 'deal') animationClass = 'animate-deal-card';
   if (animationType === 'shuffle-split') animationClass = 'animate-shuffle-split';
   if (animationType === 'shuffle-riffle') animationClass = 'animate-shuffle-riffle';
+  if (animationType === 'shuffle-merge') animationClass = 'animate-shuffle-merge';
+  if (animationType === 'shuffle-return') animationClass = 'animate-shuffle-return';
 
   // Add .card-size to ensure fluid dimensions apply to the animated element
   return (
