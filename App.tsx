@@ -948,28 +948,6 @@ const App: React.FC = () => {
                       startRotation: startRotation,
                       endRotation: endRotation
                   });
-          } else { // Return
-              // Move entire stack back to deck
-              for (let i = 0; i < totalCards; i++) {
-                  const startRect = currentRects[i];
-
-                  // Return to deck
-                  const endRect = deckRect;
-                  const startRotation = currentRotations[i];
-                  const endRotation = 0; // Back to neat stack
-
-                  items.push({
-                      id: `shuffle-return-${i}`,
-                      card: null,
-                      startRect: startRect,
-                      endRect: endRect,
-                      animationType: 'shuffle-return',
-                      delay: i * 10, // Very tight delay for "solid stack with trail" effect
-                      zIndex: i,
-                      startRotation: startRotation,
-                      endRotation: endRotation
-                  });
-             }
           }
           return items;
       };
