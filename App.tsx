@@ -55,6 +55,8 @@ type ShuffleAnimationItem = {
     animationType: 'shuffle-split' | 'shuffle-riffle';
     delay: number;
     zIndex: number;
+    startRotation?: number;
+    endRotation?: number;
 };
 
 type SpecialEffectState = {
@@ -842,24 +844,32 @@ const App: React.FC = () => {
 
       const cycles = 3;
       const cardsPerSide = 10;
+      const totalCards = cardsPerSide * 2;
+
+      // Keep track of rotation state between phases for smoothness
+      let currentRotations = Array(totalCards).fill(0);
 
       const generateItems = (phase: 'split' | 'riffle'): ShuffleAnimationItem[] => {
           const items: ShuffleAnimationItem[] = [];
           const leftOffset = -60;
           const rightOffset = 60;
 
-          for (let i = 0; i < cardsPerSide * 2; i++) {
-              const isLeft = i < cardsPerSide;
-              const stackIndex = isLeft ? i : i - cardsPerSide;
+          if (phase === 'split') {
+              for (let i = 0; i < totalCards; i++) {
+                  const isLeft = i < cardsPerSide;
+                  const stackIndex = isLeft ? i : i - cardsPerSide;
 
-              const verticalOffset = stackIndex * -0.5;
-              const horizontalRandom = (Math.random() - 0.5) * 4;
+                  const verticalOffset = stackIndex * -0.5;
+                  const horizontalRandom = (Math.random() - 0.5) * 6; // Increased chaos
 
-              const centerRect = new DOMRect(deckRect.left + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
-              const leftRect = new DOMRect(deckRect.left + leftOffset + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
-              const rightRect = new DOMRect(deckRect.left + rightOffset + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
+                  const centerRect = new DOMRect(deckRect.left + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
+                  const leftRect = new DOMRect(deckRect.left + leftOffset + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
+                  const rightRect = new DOMRect(deckRect.left + rightOffset + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
 
-              if (phase === 'split') {
+                  // Random rotation for the split piles
+                  const endRotation = (Math.random() - 0.5) * 15;
+                  currentRotations[i] = endRotation;
+
                   items.push({
                       id: `shuffle-split-${i}`,
                       card: null,
@@ -867,22 +877,64 @@ const App: React.FC = () => {
                       endRect: isLeft ? leftRect : rightRect,
                       animationType: 'shuffle-split',
                       delay: stackIndex * 10,
-                      zIndex: stackIndex
+                      zIndex: stackIndex,
+                      startRotation: 0, // Always start split from flat deck
+                      endRotation: endRotation
                   });
-              } else {
-                  const isLeftFirst = Math.random() > 0.5;
-                  const riffleDelay = (stackIndex * 20) + (isLeft === isLeftFirst ? 0 : 10);
+              }
+          } else { // Riffle
+             // Create two stacks of indices to simulate the split piles
+             const leftStack = Array.from({length: cardsPerSide}, (_, i) => i);
+             const rightStack = Array.from({length: cardsPerSide}, (_, i) => i + cardsPerSide);
+
+             let currentZ = 0;
+             const riffleOrder: { originalIndex: number, zIndex: number, delay: number }[] = [];
+
+             // Randomly interleave the stacks
+             while (leftStack.length > 0 || rightStack.length > 0) {
+                 // Decide which stack to take from (weighted random or simple coin flip)
+                 const takeFromLeft = leftStack.length > 0 && (rightStack.length === 0 || Math.random() > 0.5);
+
+                 // Take a small chunk of cards (1-3) to simulate real riffle
+                 const chunkSize = Math.min(Math.floor(Math.random() * 3) + 1, takeFromLeft ? leftStack.length : rightStack.length);
+
+                 for (let k = 0; k < chunkSize; k++) {
+                     const originalIndex = takeFromLeft ? leftStack.shift()! : rightStack.shift()!;
+                     riffleOrder.push({
+                         originalIndex,
+                         zIndex: currentZ++,
+                         delay: currentZ * 15 // Sequential delay based on new stack order
+                     });
+                 }
+             }
+
+             // Build animation items based on the determined riffle order
+             for (const { originalIndex, zIndex, delay } of riffleOrder) {
+                  const isLeft = originalIndex < cardsPerSide;
+                  const stackIndex = isLeft ? originalIndex : originalIndex - cardsPerSide;
+
+                  const verticalOffset = stackIndex * -0.5;
+                  const horizontalRandom = (Math.random() - 0.5) * 6;
+
+                  const centerRect = new DOMRect(deckRect.left + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
+                  const leftRect = new DOMRect(deckRect.left + leftOffset + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
+                  const rightRect = new DOMRect(deckRect.left + rightOffset + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
+
+                  const startRotation = currentRotations[originalIndex];
+                  const endRotation = (Math.random() - 0.5) * 5; // Settle back to near-zero with slight imperfection
 
                   items.push({
-                      id: `shuffle-riffle-${i}`,
+                      id: `shuffle-riffle-${originalIndex}`,
                       card: null,
                       startRect: isLeft ? leftRect : rightRect,
                       endRect: centerRect,
                       animationType: 'shuffle-riffle',
-                      delay: riffleDelay,
-                      zIndex: stackIndex + (isLeft ? 0 : 100)
+                      delay: delay,
+                      zIndex: zIndex,
+                      startRotation: startRotation,
+                      endRotation: endRotation
                   });
-              }
+             }
           }
           return items;
       };
@@ -894,7 +946,7 @@ const App: React.FC = () => {
            await new Promise(r => setTimeout(r, 50));
 
            setShuffleAnimationState(generateItems('riffle'));
-           await new Promise(r => setTimeout(r, 550));
+           await new Promise(r => setTimeout(r, (totalCards * 15) + 300)); // Wait for full riffle sequence
 
            await new Promise(r => setTimeout(r, 150));
       }
@@ -1276,6 +1328,8 @@ const App: React.FC = () => {
                 isFaceUp={false}
                 onAnimationEnd={() => {}}
                 difficulty={difficulty}
+                startRotation={anim.startRotation}
+                endRotation={anim.endRotation}
             />
         ))}
         {refillAnimationState && refillAnimationState.items.map((anim, index) => (

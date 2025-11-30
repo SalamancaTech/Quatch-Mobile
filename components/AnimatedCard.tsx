@@ -12,9 +12,11 @@ interface AnimatedCardProps {
   zIndex: number;
   isFaceUp?: boolean;
   difficulty?: Difficulty;
+  startRotation?: number;
+  endRotation?: number;
 }
 
-const AnimatedCard: React.FC<AnimatedCardProps> = ({ card, startRect, endRect, animationType, onAnimationEnd, delay = 0, zIndex, isFaceUp = true, difficulty }) => {
+const AnimatedCard: React.FC<AnimatedCardProps> = ({ card, startRect, endRect, animationType, onAnimationEnd, delay = 0, zIndex, isFaceUp = true, difficulty, startRotation = 0, endRotation = 0 }) => {
   let style: React.CSSProperties;
 
   const endXBase = endRect.left - startRect.left;
@@ -48,6 +50,8 @@ const AnimatedCard: React.FC<AnimatedCardProps> = ({ card, startRect, endRect, a
       '--end-x': `${endXBase}px`,
       '--end-y': `${endYBase}px`,
       '--z-index': zIndex,
+      '--start-rot': `${startRotation}deg`,
+      '--end-rot': `${endRotation}deg`,
       animationDelay: `${delay}ms`,
     } as React.CSSProperties;
 
