@@ -199,7 +199,8 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
     <div className="player-area flex flex-col-reverse items-center w-full max-w-4xl px-4 md:px-8 pointer-events-none">
       
         {/* Player Hand Area */}
-        <div ref={playerHandRef} id="player-hand-container" className="flex justify-center items-end w-full pointer-events-auto" style={{ minHeight: dimensions.height }}>
+        {/* Added relative and z-50 to ensure hand is top-most layer */}
+        <div ref={playerHandRef} id="player-hand-container" className="relative z-50 flex justify-center items-end w-full pointer-events-auto" style={{ minHeight: dimensions.height }}>
             <div
               ref={handContainerRef}
               className={`relative flex justify-center items-end transition-opacity duration-300 w-full max-w-3xl ${player.hand.length === 0 ? 'opacity-0' : 'opacity-100'}`}
@@ -237,7 +238,8 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
 
         {/* Table Cards Area (LC + LS) */}
         <div className="flex justify-center items-end w-full pointer-events-none">
-           <div ref={cardTableRef} className="flex space-x-2 md:space-x-4 mb-0 md:mb-3 pointer-events-auto">
+           {/* Added mb-2 to lift the table cards up by ~8px relative to the hand below them */}
+           <div ref={cardTableRef} className="flex space-x-2 md:space-x-4 mb-2 pointer-events-auto">
               {/* 3 Columns corresponding to LC slots */}
               {[0, 1, 2].map(i => (
                   <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative card-size">
