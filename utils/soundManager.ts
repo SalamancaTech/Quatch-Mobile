@@ -3,11 +3,15 @@ class SoundManager {
   private context: AudioContext | null = null;
   private isMuted: boolean = false;
   private masterGain: GainNode | null = null;
+  private noiseBuffer: AudioBuffer | null = null;
 
   constructor() {
-    this.isMuted = localStorage.getItem('quatch_muted') === 'true';
-    // We defer AudioContext creation to the first interaction to adhere to browser policies,
-    // or create it but it might start in 'suspended' state.
+    try {
+      this.isMuted = localStorage.getItem('quatch_muted') === 'true';
+    } catch (e) {
+      console.warn('LocalStorage access denied, default to unmuted.');
+      this.isMuted = false;
+    }
   }
 
   private initContext() {
@@ -18,9 +22,10 @@ class SoundManager {
         this.masterGain = this.context.createGain();
         this.masterGain.connect(this.context.destination);
         this.updateMuteState();
+        this.createNoiseBuffer(); // Pre-generate buffer
       }
     } else if (this.context.state === 'suspended') {
-      this.context.resume();
+      this.context.resume().catch(e => console.error("Audio resume failed", e));
     }
   }
 
@@ -30,38 +35,39 @@ class SoundManager {
 
   public toggleMute() {
     this.isMuted = !this.isMuted;
-    localStorage.setItem('quatch_muted', String(this.isMuted));
+    try {
+      localStorage.setItem('quatch_muted', String(this.isMuted));
+    } catch (e) {
+      // ignore
+    }
     this.updateMuteState();
   }
 
   private updateMuteState() {
-    if (this.masterGain) {
-      this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 1, this.context?.currentTime || 0);
+    if (this.masterGain && this.context) {
+      this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 1, this.context.currentTime);
     }
   }
 
-  // --- Sound Generators ---
-
-  // Helper: Create White Noise Buffer
-  private createNoiseBuffer(): AudioBuffer | null {
-    if (!this.context) return null;
-    const bufferSize = this.context.sampleRate * 2; // 2 seconds buffer
+  private createNoiseBuffer() {
+    if (!this.context || this.noiseBuffer) return;
+    const bufferSize = this.context.sampleRate * 2; // 2 seconds
     const buffer = this.context.createBuffer(1, bufferSize, this.context.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
       data[i] = Math.random() * 2 - 1;
     }
-    return buffer;
+    this.noiseBuffer = buffer;
   }
 
-  // Shuffle: Ruffling noise
+  // Shuffle: Ruffling noise (Bandpass Noise)
   public playShuffle() {
     this.initContext();
-    if (this.isMuted || !this.context || !this.masterGain) return;
+    if (this.isMuted || !this.context || !this.masterGain || !this.noiseBuffer) return;
 
     const t = this.context.currentTime;
     const noise = this.context.createBufferSource();
-    noise.buffer = this.createNoiseBuffer();
+    noise.buffer = this.noiseBuffer;
 
     const filter = this.context.createBiquadFilter();
     filter.type = 'bandpass';
@@ -81,14 +87,13 @@ class SoundManager {
     noise.stop(t + 0.4);
   }
 
-  // Deal Process Start: A "Deck Tap" or preparation sound
+  // Deal Start: Deck Tap (Triangle Osc)
   public playDeckTap() {
       this.initContext();
       if (this.isMuted || !this.context || !this.masterGain) return;
 
       const t = this.context.currentTime;
 
-      // Low thud
       const osc = this.context.createOscillator();
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(150, t);
@@ -105,14 +110,14 @@ class SoundManager {
       osc.stop(t + 0.2);
   }
 
-  // Individual Card Deal: "Thwip" / Whoosh
+  // Card Deal: Thwip (Lowpass Noise)
   public playDeal() {
     this.initContext();
-    if (this.isMuted || !this.context || !this.masterGain) return;
+    if (this.isMuted || !this.context || !this.masterGain || !this.noiseBuffer) return;
 
     const t = this.context.currentTime;
     const noise = this.context.createBufferSource();
-    noise.buffer = this.createNoiseBuffer();
+    noise.buffer = this.noiseBuffer;
 
     const filter = this.context.createBiquadFilter();
     filter.type = 'lowpass';
@@ -132,16 +137,16 @@ class SoundManager {
     noise.stop(t + 0.2);
   }
 
-  // Place/Play Card: Snap/Click
+  // Place Card: Snap (Highpass Noise + Sine)
   public playPlace() {
     this.initContext();
-    if (this.isMuted || !this.context || !this.masterGain) return;
+    if (this.isMuted || !this.context || !this.masterGain || !this.noiseBuffer) return;
 
     const t = this.context.currentTime;
 
-    // High frequency snap (Noise burst)
+    // Snap (Noise)
     const noise = this.context.createBufferSource();
-    noise.buffer = this.createNoiseBuffer();
+    noise.buffer = this.noiseBuffer;
 
     const noiseFilter = this.context.createBiquadFilter();
     noiseFilter.type = 'highpass';
@@ -154,11 +159,10 @@ class SoundManager {
     noise.connect(noiseFilter);
     noiseFilter.connect(noiseGain);
     noiseGain.connect(this.masterGain);
-
     noise.start(t);
     noise.stop(t + 0.1);
 
-    // Body of the snap (short sine tone)
+    // Body (Sine)
     const osc = this.context.createOscillator();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(800, t);
@@ -170,19 +174,18 @@ class SoundManager {
 
     osc.connect(oscGain);
     oscGain.connect(this.masterGain);
-
     osc.start(t);
     osc.stop(t + 0.15);
   }
 
-  // Eat: Slide/Collection sound
+  // Eat: Slide (Lowpass Noise)
   public playEat() {
       this.initContext();
-      if (this.isMuted || !this.context || !this.masterGain) return;
+      if (this.isMuted || !this.context || !this.masterGain || !this.noiseBuffer) return;
 
       const t = this.context.currentTime;
       const noise = this.context.createBufferSource();
-      noise.buffer = this.createNoiseBuffer();
+      noise.buffer = this.noiseBuffer;
 
       const filter = this.context.createBiquadFilter();
       filter.type = 'lowpass';
