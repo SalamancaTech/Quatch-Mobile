@@ -130,7 +130,7 @@ const App: React.FC = () => {
   const playerLastStandRef = useRef<HTMLDivElement>(null);
   const playerLastChanceRef = useRef<HTMLDivElement>(null);
   const playerCardTableRef = useRef<HTMLDivElement>(null);
-  const opponentLastStandRef = useRef<HTMLDivElement>(null); // Added missing ref
+  const opponentLastStandRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -314,7 +314,7 @@ const App: React.FC = () => {
   }, [playerNames]);
 
   useEffect(() => {
-    resetGame(1); // Force 1 opponent
+    resetGame(1);
   }, [resetGame]);
 
   useEffect(() => {
@@ -1129,7 +1129,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="game-board-bg min-h-screen flex flex-col justify-between py-4 box-border relative overflow-hidden">
+    <div className="game-board-bg h-screen flex flex-col justify-between pt-4 box-border relative overflow-hidden">
       
       <div
             className="absolute top-12 left-1/2 -translate-x-1/2 text-white text-sm font-light opacity-25 pointer-events-none select-none"
@@ -1396,11 +1396,11 @@ const App: React.FC = () => {
                            ))}
                        </div>
                     ) : (
-                        <div className="relative">
+                        <div className="relative card-size">
                            {activeDragData?.card ? (
                                 selectedCards.length > 1 && selectedCards.some(c => c.id === activeDragData.card.id) ? (
                                     // Render stack if dragging multiple
-                                    <div className="relative card-size">
+                                    <div className="relative w-full h-full">
                                         {selectedCards.map((c, i) => (
                                             <div key={c.id} className="absolute inset-0" style={{ transform: `translate(${i*4}px, ${-i*4}px)` }}>
                                                 <Card card={c} isFaceUp={true} difficulty={difficulty} />
