@@ -76,8 +76,9 @@ const AnimatedCard: React.FC<AnimatedCardProps> = ({ card, startRect, endRect, a
   if (animationType === 'shuffle-split') animationClass = 'animate-shuffle-split';
   if (animationType === 'shuffle-riffle') animationClass = 'animate-shuffle-riffle';
 
+  // Add .card-size to ensure fluid dimensions apply to the animated element
   return (
-    <div style={style} onAnimationEnd={onAnimationEnd} className={animationClass}>
+    <div style={style} onAnimationEnd={onAnimationEnd} className={`${animationClass} card-size`}>
       <Card card={card} isFaceUp={isFaceUp} difficulty={difficulty} />
     </div>
   );

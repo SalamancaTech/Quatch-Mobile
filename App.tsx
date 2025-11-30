@@ -130,6 +130,7 @@ const App: React.FC = () => {
   const playerLastStandRef = useRef<HTMLDivElement>(null);
   const playerLastChanceRef = useRef<HTMLDivElement>(null);
   const playerCardTableRef = useRef<HTMLDivElement>(null);
+  const opponentLastStandRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -149,9 +150,6 @@ const App: React.FC = () => {
     const { active } = event;
     setActiveDragId(active.id as string);
     setActiveDragData(active.data.current as Record<string, any>);
-
-    // If dragging a card that is selected but not the only one, ensure visual feedback is correct.
-    // The visual feedback is handled in DragOverlay.
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -166,14 +164,6 @@ const App: React.FC = () => {
         (active.data.current?.type === 'hand-card' && over.id === 'player-hand-drop-zone') ||
         (active.data.current?.type === 'hand-card' && over.data.current?.type === 'hand-card')
     ) {
-        // Calculate where the card is relative to other cards
-        // Since we are using absolute positioning, we can check the X coordinate of the pointer
-        // But DndKit gives us transforms.
-        // Simplification: If dragging over another card, we can assume we want to swap/insert there.
-        // Or better: Use the index from data.
-
-        // This part is tricky with absolute positioning.
-        // We will try to rely on 'over' target.
         if (over.data.current?.index !== undefined && active.data.current?.index !== undefined) {
             setHandReorderPreview({
                 id: active.id as string,
@@ -199,9 +189,7 @@ const App: React.FC = () => {
 
     // --- 1. Hand Reordering ---
     if (activeData.type === 'hand-card' && (over.id === 'player-hand-drop-zone' || overData.type === 'hand-card')) {
-        // If dropped on the container or another card
         if (activeData.index !== undefined) {
-             // Calculate new index
              let newIndex = activeData.index;
              if (overData.index !== undefined) {
                  newIndex = overData.index;
@@ -229,18 +217,14 @@ const App: React.FC = () => {
     // --- 2. Playing Cards (Hand -> MPA) ---
     if (activeData.type === 'hand-card' && over.id === 'mpa-drop-zone') {
         const card = activeData.card;
-        // Determine cards to play
         let cardsToPlay = [card];
 
-        // If the dragged card is part of a selection, play all selected cards
         if (selectedCards.some(c => c.id === card.id)) {
             cardsToPlay = selectedCards;
         } else {
-            // If the dragged card is NOT selected, we play just it (and clear selection).
             setSelectedCards([]);
         }
 
-        // Call the centralized play handler
         handlePlayCards(cardsToPlay);
         return;
     }
@@ -253,12 +237,11 @@ const App: React.FC = () => {
 
     // --- 4. Swap Phase Logic ---
     if (gameState.stage === GameStage.SWAP) {
-        // Hand -> LC Slot
         if (activeData.type === 'hand-card' && overData.type === 'lc-slot') {
             const handIndex = activeData.index;
             const lcIndex = overData.index;
             const handCard = player.hand[handIndex];
-            const lcCard = player.lastChance[lcIndex]; // Might be null/undefined if empty (though LC starts full usually)
+            const lcCard = player.lastChance[lcIndex];
 
             setGameState(prev => {
                  if (!prev) return null;
@@ -267,14 +250,10 @@ const App: React.FC = () => {
                          const newHand = [...p.hand];
                          const newLC = [...p.lastChance];
 
-                         // Remove from hand
                          newHand.splice(handIndex, 1);
 
-                         // Swap or Move
                          if (lcCard) {
-                             newHand.splice(handIndex, 0, lcCard); // Put LC card in hand at same spot (or push to end?)
-                             // Requirement: "the card will replace the card and put the other in their HAND"
-                             // Let's keep the order simple, just add it.
+                             newHand.splice(handIndex, 0, lcCard);
                          }
 
                          newLC[lcIndex] = handCard;
@@ -288,7 +267,6 @@ const App: React.FC = () => {
             return;
         }
 
-        // LC Card -> Hand (or Hand Container)
         if (activeData.type === 'lc-card' && (over.id === 'player-hand-drop-zone' || overData.type === 'hand-card')) {
             const lcIndex = activeData.index;
             const lcCard = player.lastChance[lcIndex];
@@ -298,47 +276,6 @@ const App: React.FC = () => {
                 const newPlayers = prev.players.map(p => {
                     if (p.id === player.id) {
                         const newLC = [...p.lastChance];
-                        // Remove from LC (set to null or filter? type says Card[], so we filter or recreate array)
-                        // Wait, Card[] implies no gaps usually, but the UI shows slots 0,1,2.
-                        // Actually types.ts says `lastChance: Card[]`.
-                        // If we remove one, the array shrinks. The slots depend on index.
-                        // If we have [A, B, C] and move B to hand, do we get [A, C]?
-                        // The UI renders `player.lastChance[i]`. If array length is 2, slot 2 is empty.
-                        // So yes, we just remove it.
-
-                        // We need to be careful with "slot" targeting if the array shrinks.
-                        // If we drag from slot 2 (index 2) but array only has 2 items, that's impossible.
-                        // But if we drag from slot 0, array becomes length 2. The old slot 1 becomes slot 0 visually?
-                        // No, the UI map is `[0, 1, 2].map(i => ... player.lastChance[i])`.
-                        // So if we remove index 0, B moves to slot 0.
-                        // This shifts cards.
-                        // The user requirement: "all 3 cards could in theory be brought into the hand; the game CANNOT be started however, until all 3 LC cards are in place."
-                        // This implies gaps might be allowed or they just shift.
-                        // Shifting is fine.
-
-                        // Requirement: "If the player drags the LC card to their HAND, no cards will replace it, the hand will merely adopt the new card"
-
-                        // BUT: We need to support putting cards BACK into empty slots.
-                        // If I move all 3 to hand, LC is empty.
-                        // I drag a card to "LC Slot 0". It should go there.
-                        // If I drag to "LC Slot 1" (which is empty), it should go there.
-                        // Since `lastChance` is a simple array, inserting at index might be tricky if it's sparse.
-                        // Let's assume we fill from left or we need to change data structure?
-                        // "Last Chance" is usually 3 cards. If we support gaps, we need `(Card | null)[]`.
-                        // `types.ts` says `Card[]`.
-                        // If I have 2 cards, and drag to slot 2, I can't put it at index 2 if length is 2 (index 0,1).
-                        // I should probably just push it to the array.
-                        // OR: Swap Logic implies specific slots.
-
-                        // Let's stick to: Dragging to ANY LC slot appends to LC array if there's space, or swaps if there's a card.
-                        // Actually, if I specifically target Slot 1 and Slot 0 is filled, I expect it to go to Slot 1.
-                        // But if the underlying data is `Card[]`, [A, B] means Slot 0 is A, Slot 1 is B.
-                        // I can't force B to be at Slot 1 without a placeholder at Slot 0.
-
-                        // For simplicity given the types:
-                        // LC -> Hand: Remove from array.
-                        // Hand -> LC: Push to array if length < 3. If target was a specific existing card, swap.
-
                         const newHand = [...p.hand, lcCard].sort((a,b) => a.value - b.value);
                         newLC.splice(lcIndex, 1);
 
@@ -377,8 +314,8 @@ const App: React.FC = () => {
   }, [playerNames]);
 
   useEffect(() => {
-    resetGame(numOpponents);
-  }, [numOpponents, resetGame]);
+    resetGame(1);
+  }, [resetGame]);
 
   useEffect(() => {
     if (!gameState || gameState.mpa.length < 2) {
@@ -399,10 +336,6 @@ const App: React.FC = () => {
   }, [gameState?.mpa]);
 
   const handleCardSelect = (card: CardType) => {
-      // SWAP Phase card selection logic is now mostly handled via Drag and Drop,
-      // but we keep click selection for accessibility/fallback.
-      // However, the original SWAP selection logic was complex and click-based swapping
-      // might conflict or be redundant. For now, we'll keep it as is.
     if (gameState?.stage === GameStage.SWAP) {
       const player = gameState.players.find(p => !p.isAI)!;
       
@@ -449,7 +382,6 @@ const App: React.FC = () => {
       return;
     }
 
-    // Normal card selection logic
     setSelectedCards(prev => {
       const isSelected = prev.some(sc => sc.id === card.id);
       if (isSelected) {
@@ -489,7 +421,6 @@ const App: React.FC = () => {
           playerPlaysAgain = true;
           clearMpa = true;
         } else if (mpaCopy.length >= 4) {
-          // Check includes the newly played card which is already in the mpa state at this point
           const topFourCards = mpaCopy.slice(-4);
           if (topFourCards.every(c => c.rank === playedCard.rank)) {
             playerPlaysAgain = true;
@@ -542,7 +473,6 @@ const App: React.FC = () => {
         }
         return p;
       });
-      // Correctly remove drawn cards from the top of the deck.
       const newDeck = prevState.deck.slice(drawnCards.length);
 
       return { ...prevState, players: newPlayers, deck: newDeck };
@@ -557,8 +487,6 @@ const App: React.FC = () => {
     const endRect = playerWhoPlayed.isAI ? document.getElementById(`opponent-${playerWhoPlayed.id}-hand-container`)?.getBoundingClientRect() : playerHandRef.current?.getBoundingClientRect();
 
     if (!startRect || !endRect) {
-      console.error("Refs missing for refill animation.");
-      // Instantly complete if refs are missing
       const drawnCards = cardsToDraw;
       setGameState(prevState => {
           if (!prevState) return null;
@@ -590,7 +518,6 @@ const App: React.FC = () => {
 
     const playedCard = playedCards[0];
     
-    // Check for clear event to defer drawing cards
     let isClearEvent = false;
     if (playedCard.rank === Rank.Ten) {
         isClearEvent = true;
@@ -600,25 +527,20 @@ const App: React.FC = () => {
         isClearEvent = true;
     }
 
-    // Use playerWhoPlayed (state before card removal) to determine where cards came from.
     const wasPlayFromHand = playerWhoPlayed.hand.some(c => playedCards.some(pc => pc.id === c.id));
 
     if (wasPlayFromHand) {
-        // playerInCurrentState.hand is already the hand after playing cards.
         const handAfterPlay = playerInCurrentState.hand;
         const mustRefillNow = handAfterPlay.length === 0;
         
-        // Defer refill on clear events, unless hand is empty.
         if (!isClearEvent || mustRefillNow) {
             const cardsNeeded = 3 - handAfterPlay.length;
             if (cardsNeeded > 0 && currentState.deck.length > 0) {
                 const numToDraw = Math.min(cardsNeeded, currentState.deck.length);
-                // Draw from the top of the deck (consistent with initial deal)
                 cardsToDraw = currentState.deck.slice(0, numToDraw);
             }
         }
     }
-    // Note: Last Stand/Chance removal is handled before the animation starts, so no extra logic needed here.
     
     if (mpaForCheck.length >= 4 && mpaForCheck.slice(-4).every(c => c.rank === playedCard.rank)) {
       setSpecialMessage({ text: "4 OF A KIND!", type: 'event' });
@@ -635,8 +557,6 @@ const App: React.FC = () => {
 
     setGameState(prevState => {
       if (!prevState) return null;
-      // This state update mainly just adds card to MPA. Card removal from hand/LC is now done pre-animation.
-      // However, we still need to filter here for cases where animation is skipped.
       return {
         ...prevState,
         players: prevState.players.map(p => p.id === playerWhoPlayed.id ? { 
@@ -686,7 +606,6 @@ const App: React.FC = () => {
     }
 
     if (!startRect) {
-        console.error("Could not determine a starting rectangle for the animation.");
         handlePlayComplete(cards, player);
         return;
     }
@@ -776,7 +695,6 @@ const App: React.FC = () => {
       return;
     }
 
-    // Remove cards from state before animating
     setGameState(prev => {
         if (!prev) return null;
         const newPlayers = prev.players.map(p => {
@@ -854,7 +772,6 @@ const App: React.FC = () => {
     
     const player = gameState.players.find(p => !p.isAI)!;
     
-    // In last stand, player cannot choose to eat.
     if (player.hand.length === 0 && player.lastChance.length === 0) {
         return;
     }
@@ -864,7 +781,7 @@ const App: React.FC = () => {
     if (playerHasValidMove(player, targetCard)) {
       setIsInvalidPlay(true);
       setTimeout(() => setIsInvalidPlay(false), 500);
-      return; // Prevent eating
+      return;
     }
 
     handleEat();
@@ -875,7 +792,6 @@ const App: React.FC = () => {
     const player = gameState.players.find(p => !p.isAI)!;
     if (player.hand.length > 0 || player.lastChance.length > 0) return;
     
-    // Move Last Stand card to hand
     setGameState(prev => {
         if (!prev) return null;
         const newPlayers = prev.players.map(p => {
@@ -883,7 +799,6 @@ const App: React.FC = () => {
                 const newLastStand = [...p.lastStand];
                 newLastStand.splice(index, 1);
 
-                // Add to hand and sort
                 const newHand = [...p.hand, card].sort((a,b) => a.value - b.value);
 
                 return { ...p, lastStand: newLastStand, hand: newHand };
@@ -901,11 +816,8 @@ const App: React.FC = () => {
       const cycles = 3;
       const cardsPerSide = 10;
 
-      // Helper to generate items
       const generateItems = (phase: 'split' | 'riffle'): ShuffleAnimationItem[] => {
           const items: ShuffleAnimationItem[] = [];
-
-          // Split offsets
           const leftOffset = -60;
           const rightOffset = 60;
 
@@ -913,8 +825,7 @@ const App: React.FC = () => {
               const isLeft = i < cardsPerSide;
               const stackIndex = isLeft ? i : i - cardsPerSide;
 
-              // Visual stacking offset
-              const verticalOffset = stackIndex * -0.5; // slight stack up
+              const verticalOffset = stackIndex * -0.5;
               const horizontalRandom = (Math.random() - 0.5) * 4;
 
               const centerRect = new DOMRect(deckRect.left + horizontalRandom, deckRect.top + verticalOffset, deckRect.width, deckRect.height);
@@ -928,16 +839,11 @@ const App: React.FC = () => {
                       startRect: centerRect,
                       endRect: isLeft ? leftRect : rightRect,
                       animationType: 'shuffle-split',
-                      delay: stackIndex * 10, // cascade out
+                      delay: stackIndex * 10,
                       zIndex: stackIndex
                   });
               } else {
-                  // Riffle: Side -> Center
-                  // We interleave delays for riffle effect
                   const isLeftFirst = Math.random() > 0.5;
-                  // If 20 cards, we want them to zip together.
-                  // Left 0, Right 0, Left 1, Right 1...
-                  // Base delay + (stackIndex * 20) + (isLeft ? 0 : 10)
                   const riffleDelay = (stackIndex * 20) + (isLeft === isLeftFirst ? 0 : 10);
 
                   items.push({
@@ -947,7 +853,7 @@ const App: React.FC = () => {
                       endRect: centerRect,
                       animationType: 'shuffle-riffle',
                       delay: riffleDelay,
-                      zIndex: stackIndex + (isLeft ? 0 : 100) // Interleave z-index roughly? Actually just stacking is fine.
+                      zIndex: stackIndex + (isLeft ? 0 : 100)
                   });
               }
           }
@@ -955,18 +861,14 @@ const App: React.FC = () => {
       };
 
       for (let i = 0; i < cycles; i++) {
-           // 1. Split
            setShuffleAnimationState(generateItems('split'));
-           await new Promise(r => setTimeout(r, 450)); // Wait for split animation
+           await new Promise(r => setTimeout(r, 450));
 
-           // 2. Wait briefly
            await new Promise(r => setTimeout(r, 50));
 
-           // 3. Riffle
            setShuffleAnimationState(generateItems('riffle'));
-           await new Promise(r => setTimeout(r, 550)); // Wait for riffle animation
+           await new Promise(r => setTimeout(r, 550));
 
-           // 4. Wait briefly
            await new Promise(r => setTimeout(r, 150));
       }
 
@@ -981,35 +883,30 @@ const App: React.FC = () => {
 
     const startRect = deckRef.current?.getBoundingClientRect();
     if (!startRect) {
-        console.error("Deck ref is missing for dealing animation.");
         return;
     }
     
-    // --- Step 0: Shuffle ---
     if (dealingStep === 0) {
         runShuffleSequence();
         return;
     }
 
-    // --- Steps 1-3: Dealing Cards ---
     const playerLSRect = playerLastStandRef.current?.getBoundingClientRect();
     const playerLCRect = playerLastChanceRef.current?.getBoundingClientRect();
     const playerHandRect = playerHandRef.current?.getBoundingClientRect();
 
     if (!playerLSRect || !playerLCRect || !playerHandRect) {
-      console.error("A container ref is missing for dealing.");
       return;
     }
 
     const animations: DealAnimationItem[] = [];
     let delay = 0;
-    const delayIncrement = 200; // Slower for "one-at-a-time" feel
+    const delayIncrement = 200;
     const { width: cardWidth, height: cardHeight } = getCardDimensions();
     
     const numPlayers = gameState.players.length;
     let currentDeck = [...gameState.deck];
 
-    // --- Deal Last Stand ---
     const lsCardsForStep = currentDeck.slice(0, numPlayers * 3);
     currentDeck = currentDeck.slice(numPlayers * 3);
     const lsCardsToDeal = Array.from({ length: numPlayers }, (_, i) => lsCardsForStep.slice(i * 3, (i + 1) * 3));
@@ -1025,7 +922,6 @@ const App: React.FC = () => {
         }
     }
 
-    // --- Deal Last Chance ---
     const lcCardsForStep = currentDeck.slice(0, numPlayers * 3);
     currentDeck = currentDeck.slice(numPlayers * 3);
     const lcCardsToDeal = Array.from({ length: numPlayers }, (_, i) => lcCardsForStep.slice(i * 3, (i + 1) * 3));
@@ -1041,7 +937,6 @@ const App: React.FC = () => {
         }
     }
 
-    // --- Deal Hand ---
     const handCardsForStep = currentDeck.slice(0, numPlayers * 3);
     currentDeck = currentDeck.slice(numPlayers * 3);
     const handCardsToDeal = Array.from({ length: numPlayers }, (_, i) => handCardsForStep.slice(i * 3, (i + 1) * 3));
@@ -1068,14 +963,14 @@ const App: React.FC = () => {
         return {
             ...prev,
             players: newPlayers,
-            deck: currentDeck, // This is the final remaining deck
+            deck: currentDeck,
             stage: GameStage.SWAP,
             currentPlayerId: -1,
             isPlayerTurn: false,
         };
     };
 
-    setDealingStep(4); // Immediately prevent further clicks
+    setDealingStep(4);
     setDealAnimationState(animations);
     const totalAnimationTime = delay + 400;
     setTimeout(() => {
@@ -1087,7 +982,7 @@ const App: React.FC = () => {
   
   const handleSetDifficulty = (newDifficulty: Difficulty) => {
     setDifficulty(newDifficulty);
-    resetGame(numOpponents);
+    resetGame(1);
   };
 
   const handleSaveNames = (newNames: string[]) => {
@@ -1104,7 +999,6 @@ const App: React.FC = () => {
     setIsEditNamesModalOpen(false);
   };
 
-  // AI Turn Logic
   useEffect(() => {
     if (gameState && gameState.stage === GameStage.PLAY && gameState.players[gameState.currentPlayerId].isAI && !gameState.winner && !animationState && !eatAnimationState && !refillAnimationState && !shuffleAnimationState) {
       const turnTimeout = setTimeout(() => {
@@ -1114,13 +1008,11 @@ const App: React.FC = () => {
         const play = getAIPlay(aiPlayer, targetCard, gameState.mpa.length, gameState.deck.length, difficulty);
 
         if (aiPlayer.hand.length === 0 && aiPlayer.lastChance.length === 0) {
-            // AI Last Stand Logic
             const cardToPlay = play[0];
             const cardIndex = aiPlayer.lastStand.findIndex(c => c.id === cardToPlay.id);
 
             const startRect = opponentLastStandRef.current?.getBoundingClientRect();
             if (isValidPlay([cardToPlay], targetCard, aiPlayer)) {
-                // Remove card from state before animating
                 setGameState(prev => {
                     if (!prev) return null;
                     const newPlayers = prev.players.map(p => {
@@ -1135,9 +1027,7 @@ const App: React.FC = () => {
                 });
                 initiatePlayAnimation([cardToPlay], aiPlayer, startRect);
             } else {
-                // AI Busts!
                 setSpecialMessage({ text: `${aiPlayer.name} Busts!`, type: 'event' });
-                // Remove card from state before animating eat
                 setGameState(prev => {
                     if (!prev) return null;
                     const newPlayers = prev.players.map(p => {
@@ -1148,7 +1038,7 @@ const App: React.FC = () => {
                         }
                         return p;
                     });
-                    return { ...prev, mpa: [] }; // Also clear mpa for animation
+                    return { ...prev, mpa: [] };
                 });
                 const items: EatAnimationItem[] = gameState.mpa.map(c => ({
                     card: c,
@@ -1165,7 +1055,6 @@ const App: React.FC = () => {
                 initiateEatAnimation(items, 'opponent');
             }
         } else if (play.length > 0) {
-            // Normal AI Play
             setGameState(prev => {
                 if (!prev) return null;
                 const newPlayers = prev.players.map(p => {
@@ -1182,7 +1071,6 @@ const App: React.FC = () => {
             });
             initiatePlayAnimation(play, aiPlayer);
         } else {
-            // AI must eat
             setSpecialMessage({ text: `${aiPlayer.name} Eats!`, type: 'event' });
             const items: EatAnimationItem[] = gameState.mpa.map(card => ({
                 card,
@@ -1203,21 +1091,7 @@ const App: React.FC = () => {
 
   const humanPlayer = gameState.players.find(p => !p.isAI)!;
   const aiPlayers = gameState.players.filter(p => p.isAI);
-
-  let topPlayer: Player | undefined;
-  let leftPlayer: Player | undefined;
-  let rightPlayer: Player | undefined;
-
-  if (numOpponents === 1) {
-    topPlayer = aiPlayers[0];
-  } else if (numOpponents === 2) {
-    leftPlayer = aiPlayers[0];
-    rightPlayer = aiPlayers[1];
-  } else if (numOpponents === 3) {
-    leftPlayer = aiPlayers[0];
-    topPlayer = aiPlayers[1];
-    rightPlayer = aiPlayers[2];
-  }
+  const topPlayer = aiPlayers[0];
 
   const eatenCardsForCompletion = eatAnimationState?.map(item => item.card);
 
@@ -1237,7 +1111,7 @@ const App: React.FC = () => {
                 return { colorClass: 'text-yellow-300', animationClass: 'animate-four-of-a-kind', shadowStyle: { textShadow: '0 0 10px #ff0, 0 0 20px #ff0' } };
             case 'Begin!':
                 return { colorClass: 'text-white', animationClass: 'animate-begin', shadowStyle: { textShadow: '0 0 10px #fff, 0 0 20px #f0f' } };
-            default: // For "Cleared!", "Reset!", "4 OF A KIND!", and custom name messages
+            default:
                 return { colorClass: 'text-white', animationClass: 'animate-four-of-a-kind', shadowStyle: { textShadow: '0 0 10px #ff0, 0 0 20px #ff0, 0 0 30px #f0f, 0 0 40px #f0f' } };
         }
     };
@@ -1255,48 +1129,14 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="game-board-bg min-h-screen flex flex-col overflow-hidden relative">
+    <div className="game-board-bg h-screen flex flex-col justify-between pt-4 box-border relative overflow-hidden">
       
-      {/* Player Name Tags */}
-      {gameState.players.map(p => {
-        const isHuman = p.id === 0;
-        let positionClasses = '';
-        let textOrientation = '';
-        if (isHuman) {
-          positionClasses = 'bottom-0 left-1/2 -translate-x-1/2';
-        } else {
-          const playerPosition = topPlayer?.id === p.id ? 'top' : leftPlayer?.id === p.id ? 'left' : 'right';
-          if (playerPosition === 'top') {
-            positionClasses = 'top-0 left-1/2 -translate-x-1/2';
-          } else if (playerPosition === 'left') {
-            positionClasses = 'top-1/2 left-0 -translate-y-1/2';
-            textOrientation = 'transform -rotate-90';
-          } else { // right
-            positionClasses = 'top-1/2 right-0 -translate-y-1/2';
-            textOrientation = 'transform rotate-90';
-          }
-        }
-
-        return (
-          <div key={p.id} className={`fixed ${positionClasses} h-10 flex items-center justify-center z-50 pointer-events-none`}>
-            <span
-              className={`text-yellow-400 font-bold text-xl uppercase tracking-wider drop-shadow-lg ${textOrientation}`}
-              style={{ textShadow: '0 0 10px rgba(250, 204, 21, 0.6), 2px 2px 4px rgba(0,0,0,0.8)' }}
-            >
-              {p.name}
-            </span>
-          </div>
-        );
-      })}
-
-      <div className="flex-grow flex flex-col justify-center items-center py-12 px-2">
-        <div 
+      <div
             className="absolute top-12 left-1/2 -translate-x-1/2 text-white text-sm font-light opacity-25 pointer-events-none select-none"
         >
             created by SalamancaTech
         </div>
 
-        {/* Pop-up Messages Layer */}
         {specialMessage && (
             <div
                 className="fixed inset-0 flex items-start justify-center pointer-events-none z-[200] pt-44 text-center px-4"
@@ -1321,7 +1161,7 @@ const App: React.FC = () => {
             </button>
             {isMenuOpen && (
             <div className="absolute top-12 right-0 bg-gray-800 rounded-lg shadow-xl py-2 w-56">
-                <button onClick={() => resetGame(numOpponents)} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">New Game</button>
+                <button onClick={() => resetGame(1)} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">New Game</button>
                 <button onClick={() => { setIsDifficultyModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Change Difficulty</button>
                 <button onClick={() => { setIsEditNamesModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Edit Names</button>
                 <button onClick={() => { setIsRulesModalOpen(true); setIsMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-white hover:bg-gray-700 transition-colors">Game Rules</button>
@@ -1355,7 +1195,7 @@ const App: React.FC = () => {
         {isEditNamesModalOpen && (
             <EditNamesModal
             currentNames={playerNames}
-            numOpponents={numOpponents}
+            numOpponents={1}
             onSave={handleSaveNames}
             onClose={() => setIsEditNamesModalOpen(false)}
             />
@@ -1476,11 +1316,10 @@ const App: React.FC = () => {
             onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
         >
-        {/* --- Main Game Grid --- */}
-        <div className="relative w-full flex-grow flex items-center justify-center pointer-events-none">
 
-          {topPlayer && (
-            <div className="fixed top-[12%] left-1/2 -translate-x-1/2 pointer-events-none z-10">
+        {/* Opponent Area */}
+        <div className="w-full flex justify-center pointer-events-none z-10">
+            {topPlayer && (
               <PlayerArea
                 player={topPlayer}
                 isCurrentPlayer={gameState.currentPlayerId === topPlayer.id}
@@ -1491,88 +1330,57 @@ const App: React.FC = () => {
                 difficulty={difficulty}
                 position="top"
               />
-            </div>
-          )}
-
-          {leftPlayer && (
-            <div className="fixed left-4 top-1/2 -translate-y-1/2 pointer-events-none z-10">
-              <PlayerArea
-                player={leftPlayer}
-                isCurrentPlayer={gameState.currentPlayerId === leftPlayer.id}
-                selectedCards={[]}
-                onCardSelect={() => {}}
-                currentStage={gameState.stage}
-                hiddenCardIds={hiddenCardIds}
-                difficulty={difficulty}
-                position="left"
-              />
-            </div>
-          )}
-
-          {rightPlayer && (
-            <div className="fixed right-4 top-1/2 -translate-y-1/2 pointer-events-none z-10">
-              <PlayerArea
-                player={rightPlayer}
-                isCurrentPlayer={gameState.currentPlayerId === rightPlayer.id}
-                selectedCards={[]}
-                onCardSelect={() => {}}
-                currentStage={gameState.stage}
-                hiddenCardIds={hiddenCardIds}
-                difficulty={difficulty}
-                position="right"
-              />
-            </div>
-          )}
-
-          {/* Game Board Wrapper */}
-          <div className="fixed top-[42%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-auto">
-                <GameBoard
-                    deckCount={gameState.deck.length}
-                    mpa={gameState.mpa}
-                    binCount={gameState.bin.length}
-                    onMpaClick={handleMpaClick}
-                    isPlayerTurn={gameState.isPlayerTurn}
-                    hasSelectedCards={selectedCards.length > 0}
-                    isInvalidPlay={isInvalidPlay}
-                    stage={gameState.stage}
-                    onDeckClick={handleDeckClick}
-                    mpaRef={mpaRef}
-                    deckRef={deckRef}
-                    isEating={!!eatAnimationState && eatAnimationState.length > 0}
-                    dealingStep={dealingStep}
-                    isCheatingEnabled={isCheatingEnabled}
-                    onBinClick={() => setIsBinViewOpen(true)}
-                    difficulty={difficulty}
-                    comboCount={comboCount}
-                    isShuffling={!!shuffleAnimationState}
-                />
-            </div>
-
-            {/* Player's Controls & Area */}
-            <div className="fixed bottom-[10.5%] left-0 w-full flex justify-center pointer-events-none z-20">
-                {/* Wrap the player area in a droppable for general 'Drop to Hand' actions */}
-                <DroppableArea id="player-hand-drop-zone" className="w-full pointer-events-none">
-                    <PlayerArea
-                        player={humanPlayer}
-                        isCurrentPlayer={gameState.currentPlayerId === humanPlayer.id}
-                        selectedCards={selectedCards}
-                        position="bottom"
-                        onCardSelect={handleCardSelect}
-                        onLastStandCardSelect={handleLastStandCardSelect}
-                        currentStage={gameState.stage}
-                        hiddenCardIds={hiddenCardIds}
-                        playerHandRef={playerHandRef}
-                        lastStandRef={playerLastStandRef}
-                        lastChanceRef={playerLastChanceRef}
-                        cardTableRef={playerCardTableRef}
-                        isInitialPlay={isInitialPlay}
-                        difficulty={difficulty}
-                        activeDragId={activeDragId}
-                        handReorderPreview={handReorderPreview}
-                    />
-                </DroppableArea>
-            </div>
+            )}
         </div>
+
+        {/* Game Board Wrapper */}
+        <div className="w-full flex justify-center items-center pointer-events-auto z-0">
+            <GameBoard
+                deckCount={gameState.deck.length}
+                mpa={gameState.mpa}
+                binCount={gameState.bin.length}
+                onMpaClick={handleMpaClick}
+                isPlayerTurn={gameState.isPlayerTurn}
+                hasSelectedCards={selectedCards.length > 0}
+                isInvalidPlay={isInvalidPlay}
+                stage={gameState.stage}
+                onDeckClick={handleDeckClick}
+                mpaRef={mpaRef}
+                deckRef={deckRef}
+                isEating={!!eatAnimationState && eatAnimationState.length > 0}
+                dealingStep={dealingStep}
+                isCheatingEnabled={isCheatingEnabled}
+                onBinClick={() => setIsBinViewOpen(true)}
+                difficulty={difficulty}
+                comboCount={comboCount}
+                isShuffling={!!shuffleAnimationState}
+            />
+        </div>
+
+        {/* Player's Controls & Area */}
+        <div className="w-full flex justify-center pointer-events-none z-20">
+            <DroppableArea id="player-hand-drop-zone" className="w-full pointer-events-none">
+                <PlayerArea
+                    player={humanPlayer}
+                    isCurrentPlayer={gameState.currentPlayerId === humanPlayer.id}
+                    selectedCards={selectedCards}
+                    position="bottom"
+                    onCardSelect={handleCardSelect}
+                    onLastStandCardSelect={handleLastStandCardSelect}
+                    currentStage={gameState.stage}
+                    hiddenCardIds={hiddenCardIds}
+                    playerHandRef={playerHandRef}
+                    lastStandRef={playerLastStandRef}
+                    lastChanceRef={playerLastChanceRef}
+                    cardTableRef={playerCardTableRef}
+                    isInitialPlay={isInitialPlay}
+                    difficulty={difficulty}
+                    activeDragId={activeDragId}
+                    handReorderPreview={handReorderPreview}
+                />
+            </DroppableArea>
+        </div>
+
         <DragOverlay dropAnimation={{
             duration: 250,
             easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
@@ -1588,11 +1396,11 @@ const App: React.FC = () => {
                            ))}
                        </div>
                     ) : (
-                        <div className="relative">
+                        <div className="relative card-size">
                            {activeDragData?.card ? (
                                 selectedCards.length > 1 && selectedCards.some(c => c.id === activeDragData.card.id) ? (
                                     // Render stack if dragging multiple
-                                    <div className="relative card-size">
+                                    <div className="relative w-full h-full">
                                         {selectedCards.map((c, i) => (
                                             <div key={c.id} className="absolute inset-0" style={{ transform: `translate(${i*4}px, ${-i*4}px)` }}>
                                                 <Card card={c} isFaceUp={true} difficulty={difficulty} />
@@ -1609,8 +1417,6 @@ const App: React.FC = () => {
             )}
         </DragOverlay>
         </DndContext>
-      </div>
-
 
       {gameState.stage === GameStage.GAME_OVER && gameState.winner && (
           <GameOverModal
@@ -1620,7 +1426,7 @@ const App: React.FC = () => {
             turnCount={gameState.turnCount}
             gameDuration={Math.round((Date.now() - gameState.gameStartTime) / 1000)}
             difficulty={difficulty}
-            onPlayAgain={() => resetGame(numOpponents)}
+            onPlayAgain={() => resetGame(1)}
           />
       )}
     </div>

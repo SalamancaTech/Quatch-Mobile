@@ -29,17 +29,21 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
   const handContainerRef = useRef<HTMLDivElement>(null);
   const typePrefix = isHuman ? 'player' : `opponent-${player.id}`;
   const [cardMargin, setCardMargin] = useState(0);
+  // Track card dimensions for dynamic container sizing
+  const [dimensions, setDimensions] = useState(getCardDimensions());
 
   useEffect(() => {
     const calculateLayout = () => {
+        const newDims = getCardDimensions();
+        setDimensions(newDims);
+
         if (!handContainerRef.current || player.hand.length <= 1) {
             setCardMargin(0);
             return;
         }
 
         const containerWidth = handContainerRef.current.offsetWidth;
-        // Corresponds to md:w-24 (96px) and w-20 (80px) in Card.tsx
-        const cardWidth = getCardDimensions().width;
+        const cardWidth = newDims.width;
         const numCards = player.hand.length;
 
         // Total width of all cards without any overlap
@@ -73,7 +77,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
     const handCards = Array.from({ length: handVisualCount }).map((_, i) => (
         <div
             key={`op-hand-${i}`}
-            className="absolute"
+            className="absolute card-size" // Added card-size here to ensure the wrapper has dimensions for the fluid Card child
             style={{
                 left: `${i * 12}px`,
                 zIndex: i
@@ -140,7 +144,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
           </div>
       );
     } else {
-      // Vertical layout for left/right players
+      // Vertical layout for left/right players (Deprecated in 1v1 but kept for safety)
       const isLeft = position === 'left';
       return (
         <div className={`player-area flex flex-col items-center justify-center w-48 h-full p-4 ${isLeft ? 'mr-auto' : 'ml-auto'} pointer-events-none`}>
@@ -195,10 +199,12 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
     <div className="player-area flex flex-col-reverse items-center w-full max-w-4xl px-4 md:px-8 pointer-events-none">
       
         {/* Player Hand Area */}
-        <div ref={playerHandRef} id="player-hand-container" className="flex justify-center items-end min-h-[160px] w-full pointer-events-auto">
+        {/* Added relative and z-50 to ensure hand is top-most layer */}
+        <div ref={playerHandRef} id="player-hand-container" className="relative z-50 flex justify-center items-end w-full pointer-events-auto" style={{ minHeight: dimensions.height }}>
             <div
               ref={handContainerRef}
-              className={`relative flex justify-center items-end transition-opacity duration-300 w-full max-w-3xl h-[144px] ${player.hand.length === 0 ? 'opacity-0' : 'opacity-100'}`}
+              className={`relative flex justify-center items-end transition-opacity duration-300 w-full max-w-3xl ${player.hand.length === 0 ? 'opacity-0' : 'opacity-100'}`}
+              style={{ height: dimensions.height }}
             >
               {player.hand.map((card, index) => {
                   const isDisabled = isInitialPlay && (card.rank === Rank.Two || card.rank === Rank.Ten);
@@ -210,7 +216,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
                           data={{ type: 'hand-card', index: index, card: card }}
                           droppableData={isHuman ? { type: 'hand-card', index: index } : undefined}
                           disabled={!isHuman || isDisabled || (!isCurrentPlayer && currentStage !== GameStage.SWAP)}
-                          className={`player-hand-card-wrapper transition-all duration-200 ease-out hover:-translate-y-8 hover:z-[100] ${hiddenCardIds.has(card.id) ? 'opacity-0' : 'opacity-100'}`}
+                          className={`player-hand-card-wrapper card-size transition-all duration-200 ease-out hover:-translate-y-8 hover:z-[100] ${hiddenCardIds.has(card.id) ? 'opacity-0' : 'opacity-100'}`}
                           style={{
                             zIndex: index,
                             marginLeft: index > 0 ? `${cardMargin}px` : '0px'
@@ -232,7 +238,8 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
 
         {/* Table Cards Area (LC + LS) */}
         <div className="flex justify-center items-end w-full pointer-events-none">
-           <div ref={cardTableRef} className="flex space-x-2 md:space-x-4 mb-0 md:mb-3 pointer-events-auto">
+           {/* Added mb-2 to lift the table cards up by ~8px relative to the hand below them */}
+           <div ref={cardTableRef} className="flex space-x-2 md:space-x-4 mb-2 pointer-events-auto">
               {/* 3 Columns corresponding to LC slots */}
               {[0, 1, 2].map(i => (
                   <div key={i} id={`${typePrefix}-table-slot-${i}`} className="relative card-size">

@@ -161,7 +161,7 @@ const GameBoard: React.FC<GameBoardProps> = ({ deckCount, mpa, binCount, onMpaCl
               </div>
 
               {/* Slot 2: Deck */}
-              <div className="relative card-size flex items-center justify-center ml-[10px]">
+              <div className="relative card-size flex items-center justify-center">
                   {DeckPile}
               </div>
           </div>
