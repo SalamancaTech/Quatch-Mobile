@@ -888,7 +888,7 @@ const App: React.FC = () => {
                       startRect: deckRect,
                       endRect: endRect,
                       animationType: 'shuffle-split',
-                      delay: i * 30, // Sequential fly-out
+                      delay: i * 50, // Sequential fly-out
                       zIndex: i,
                       startRotation: 0,
                       endRotation: endRotation
@@ -921,8 +921,30 @@ const App: React.FC = () => {
                       startRect: startRect,
                       endRect: endRect,
                       animationType: 'shuffle-merge',
-                      delay: i * 20, // Rapid fire merge
+                      delay: i * 40, // Rapid fire merge
                       zIndex: i, // New stack order based on arrival
+                      startRotation: startRotation,
+                      endRotation: endRotation
+                  });
+              }
+          } else { // Return
+              // Move entire stack back to deck
+              for (let i = 0; i < totalCards; i++) {
+                  const startRect = currentRects[i];
+
+                  // Return to deck
+                  const endRect = deckRect;
+                  const startRotation = currentRotations[i];
+                  const endRotation = 0; // Back to neat stack
+
+                  items.push({
+                      id: `shuffle-return-${i}`,
+                      card: null,
+                      startRect: startRect,
+                      endRect: endRect,
+                      animationType: 'shuffle-return',
+                      delay: i * 20, // Very tight delay for "solid stack with trail" effect
+                      zIndex: i,
                       startRotation: startRotation,
                       endRotation: endRotation
                   });
@@ -955,15 +977,15 @@ const App: React.FC = () => {
 
       // 1. Split to 4 Piles
       setShuffleAnimationState(generateItems('split'));
-      await new Promise(r => setTimeout(r, (totalCards * 30) + 400)); // Wait for split
+      await new Promise(r => setTimeout(r, (totalCards * 50) + 600)); // Wait for split
 
       // 2. Chaotic Merge to Center
       setShuffleAnimationState(generateItems('merge'));
-      await new Promise(r => setTimeout(r, (totalCards * 20) + 400)); // Wait for merge
+      await new Promise(r => setTimeout(r, (totalCards * 40) + 500)); // Wait for merge
 
       // 3. Return to Deck
       setShuffleAnimationState(generateItems('return'));
-      await new Promise(r => setTimeout(r, (totalCards * 10) + 500)); // Wait for return
+      await new Promise(r => setTimeout(r, (totalCards * 20) + 600)); // Wait for return
 
       setShuffleAnimationState(null);
       setGameState(prev => ({ ...prev!, deck: shuffleDeck([...prev!.deck]) }));
