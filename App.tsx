@@ -948,6 +948,7 @@ const App: React.FC = () => {
                       startRotation: startRotation,
                       endRotation: endRotation
                   });
+              }
           }
           return items;
       };
