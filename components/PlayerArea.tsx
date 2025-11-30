@@ -77,7 +77,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ player, isCurrentPlayer, select
     const handCards = Array.from({ length: handVisualCount }).map((_, i) => (
         <div
             key={`op-hand-${i}`}
-            className="absolute"
+            className="absolute card-size" // Added card-size here to ensure the wrapper has dimensions for the fluid Card child
             style={{
                 left: `${i * 12}px`,
                 zIndex: i
