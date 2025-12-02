@@ -807,7 +807,8 @@ const App: React.FC = () => {
   const handleEat = () => {
     if (!gameState || !gameState.isPlayerTurn || eatAnimationState || gameState.mpa.length === 0) return;
     
-    setSpecialMessage({ text: "You Eat!", type: 'event' });
+    const eatCount = gameState.mpa.length;
+    setSpecialMessage({ text: `You Eat ${eatCount} Card${eatCount !== 1 ? 's' : ''}!`, type: 'event' });
     playSound('eat');
     
     const items: EatAnimationItem[] = gameState.mpa.map(card => ({
@@ -897,7 +898,7 @@ const App: React.FC = () => {
       let currentRotations = Array(totalCards).fill(0);
       let pileAssignments = Array(totalCards).fill(0); // Which pile (0-3) each card belongs to
 
-      const generateItems = (phase: 'split' | 'merge' | 'return'): ShuffleAnimationItem[] => {
+      const generateItems = (phase: 'split' | 'riffle' | 'merge' | 'return'): ShuffleAnimationItem[] => {
           const items: ShuffleAnimationItem[] = [];
 
           if (phase === 'split') {
@@ -987,16 +988,16 @@ const App: React.FC = () => {
           return items;
       };
 
-      for (let i = 0; i < cycles; i++) {
-           setShuffleAnimationState(generateItems('split'));
-           soundManager.playShuffle();
-           await new Promise(r => setTimeout(r, 450));
+      // 1. Split & Riffle phases
+      setShuffleAnimationState(generateItems('split'));
+      soundManager.playShuffle();
+      await new Promise(r => setTimeout(r, 450));
 
-           await new Promise(r => setTimeout(r, 50));
+      await new Promise(r => setTimeout(r, 50));
 
-           setShuffleAnimationState(generateItems('riffle'));
-           soundManager.playShuffle();
-           await new Promise(r => setTimeout(r, 550));
+      setShuffleAnimationState(generateItems('riffle'));
+      soundManager.playShuffle();
+      await new Promise(r => setTimeout(r, 550));
 
       // 3. Return to Deck
       setShuffleAnimationState(generateItems('return'));
@@ -1164,7 +1165,8 @@ const App: React.FC = () => {
                 });
                 initiatePlayAnimation([cardToPlay], aiPlayer, startRect);
             } else {
-                setSpecialMessage({ text: `${aiPlayer.name} Busts!`, type: 'event' });
+                const eatCount = gameState.mpa.length + 1; // MPA + the card played
+                setSpecialMessage({ text: `${aiPlayer.name} Busts! Eats ${eatCount} Card${eatCount !== 1 ? 's' : ''}!`, type: 'event' });
                 playSound('eat'); // Bust sound implies eating
                 setGameState(prev => {
                     if (!prev) return null;
@@ -1209,7 +1211,8 @@ const App: React.FC = () => {
             });
             initiatePlayAnimation(play, aiPlayer);
         } else {
-            setSpecialMessage({ text: `${aiPlayer.name} Eats!`, type: 'event' });
+            const eatCount = gameState.mpa.length;
+            setSpecialMessage({ text: `${aiPlayer.name} Eats ${eatCount} Card${eatCount !== 1 ? 's' : ''}!`, type: 'event' });
             playSound('eat');
             const items: EatAnimationItem[] = gameState.mpa.map(card => ({
                 card,
@@ -1240,7 +1243,7 @@ const App: React.FC = () => {
 
     const getMessageStyle = () => {
         const text = specialMessage.text;
-        const isActionMessage = /eats!|busts!/i.test(text) || text === "CAN'T START WITH 2 OR 10";
+        const isActionMessage = /\bEats?\b|busts!/i.test(text) || text === "CAN'T START WITH 2 OR 10";
 
         if (isActionMessage) {
             return { colorClass: 'text-red-500', animationClass: 'animate-four-of-a-kind', shadowStyle: { textShadow: '0 0 8px rgba(255, 255, 255, 0.5), 0 0 15px #ef4444, 0 0 25px #dc2626' } };
