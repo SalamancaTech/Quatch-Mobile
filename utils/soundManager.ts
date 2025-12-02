@@ -60,7 +60,7 @@ class SoundManager {
     this.noiseBuffer = buffer;
   }
 
-  // Shuffle: Ruffling noise (Bandpass Noise)
+  // Shuffle: Louder and crisper
   public playShuffle() {
     this.initContext();
     if (this.isMuted || !this.context || !this.masterGain || !this.noiseBuffer) return;
@@ -71,12 +71,13 @@ class SoundManager {
 
     const filter = this.context.createBiquadFilter();
     filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(500, t);
-    filter.frequency.exponentialRampToValueAtTime(3000, t + 0.1);
+    filter.frequency.setValueAtTime(600, t);
+    filter.frequency.exponentialRampToValueAtTime(3500, t + 0.1);
 
     const gain = this.context.createGain();
     gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(0.3, t + 0.05);
+    // Increased peak gain from 0.3 to 0.8
+    gain.gain.linearRampToValueAtTime(0.8, t + 0.05);
     gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
 
     noise.connect(filter);
@@ -87,7 +88,7 @@ class SoundManager {
     noise.stop(t + 0.4);
   }
 
-  // Deal Start: Deck Tap (Triangle Osc)
+  // Deal Start: More pronounced tap
   public playDeckTap() {
       this.initContext();
       if (this.isMuted || !this.context || !this.masterGain) return;
@@ -96,11 +97,12 @@ class SoundManager {
 
       const osc = this.context.createOscillator();
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(150, t);
+      osc.frequency.setValueAtTime(200, t); // Slightly higher pitch
       osc.frequency.exponentialRampToValueAtTime(50, t + 0.1);
 
       const gain = this.context.createGain();
-      gain.gain.setValueAtTime(0.5, t);
+      // Increased gain from 0.5 to 0.8
+      gain.gain.setValueAtTime(0.8, t);
       gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
 
       osc.connect(gain);
@@ -110,7 +112,7 @@ class SoundManager {
       osc.stop(t + 0.2);
   }
 
-  // Card Deal: Thwip (Lowpass Noise)
+  // Card Deal: Sharper Thwip
   public playDeal() {
     this.initContext();
     if (this.isMuted || !this.context || !this.masterGain || !this.noiseBuffer) return;
@@ -121,12 +123,13 @@ class SoundManager {
 
     const filter = this.context.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(800, t);
-    filter.frequency.linearRampToValueAtTime(2000, t + 0.1);
+    filter.frequency.setValueAtTime(900, t);
+    filter.frequency.linearRampToValueAtTime(2500, t + 0.1);
 
     const gain = this.context.createGain();
     gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(0.15, t + 0.02);
+    // Increased peak gain from 0.15 to 0.5
+    gain.gain.linearRampToValueAtTime(0.5, t + 0.02);
     gain.gain.linearRampToValueAtTime(0, t + 0.15);
 
     noise.connect(filter);
@@ -137,7 +140,7 @@ class SoundManager {
     noise.stop(t + 0.2);
   }
 
-  // Place Card: Snap (Highpass Noise + Sine)
+  // Place Card: Harder Snap
   public playPlace() {
     this.initContext();
     if (this.isMuted || !this.context || !this.masterGain || !this.noiseBuffer) return;
@@ -150,10 +153,11 @@ class SoundManager {
 
     const noiseFilter = this.context.createBiquadFilter();
     noiseFilter.type = 'highpass';
-    noiseFilter.frequency.value = 2000;
+    noiseFilter.frequency.value = 2500;
 
     const noiseGain = this.context.createGain();
-    noiseGain.gain.setValueAtTime(0.3, t);
+    // Increased gain from 0.3 to 0.7
+    noiseGain.gain.setValueAtTime(0.7, t);
     noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
 
     noise.connect(noiseFilter);
@@ -169,7 +173,8 @@ class SoundManager {
     osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
 
     const oscGain = this.context.createGain();
-    oscGain.gain.setValueAtTime(0.2, t);
+    // Increased gain from 0.2 to 0.5
+    oscGain.gain.setValueAtTime(0.5, t);
     oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
 
     osc.connect(oscGain);
@@ -178,7 +183,7 @@ class SoundManager {
     osc.stop(t + 0.15);
   }
 
-  // Eat: Slide (Lowpass Noise)
+  // Eat: Louder Slide
   public playEat() {
       this.initContext();
       if (this.isMuted || !this.context || !this.masterGain || !this.noiseBuffer) return;
@@ -194,7 +199,8 @@ class SoundManager {
 
       const gain = this.context.createGain();
       gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.2, t + 0.1);
+      // Increased gain from 0.2 to 0.6
+      gain.gain.linearRampToValueAtTime(0.6, t + 0.1);
       gain.gain.linearRampToValueAtTime(0, t + 0.4);
 
       noise.connect(filter);
@@ -203,6 +209,79 @@ class SoundManager {
 
       noise.start(t);
       noise.stop(t + 0.5);
+  }
+
+  // Notification: Pleasant Chime
+  public playNotification() {
+    this.initContext();
+    if (this.isMuted || !this.context || !this.masterGain) return;
+
+    const t = this.context.currentTime;
+
+    const osc = this.context.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(523.25, t); // C5
+    osc.frequency.exponentialRampToValueAtTime(1046.50, t + 0.1); // C6
+
+    const gain = this.context.createGain();
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.4, t + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(t);
+    osc.stop(t + 0.5);
+  }
+
+  // Error: Low Buzz/Thud
+  public playError() {
+    this.initContext();
+    if (this.isMuted || !this.context || !this.masterGain) return;
+
+    const t = this.context.currentTime;
+
+    const osc = this.context.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.linearRampToValueAtTime(100, t + 0.15);
+
+    const gain = this.context.createGain();
+    gain.gain.setValueAtTime(0.3, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(t);
+    osc.stop(t + 0.2);
+  }
+
+  // Victory: Arpeggio
+  public playVictory() {
+    this.initContext();
+    if (this.isMuted || !this.context || !this.masterGain) return;
+
+    const t = this.context.currentTime;
+    const notes = [523.25, 659.25, 783.99, 1046.50]; // C Major arpeggio
+
+    notes.forEach((freq, index) => {
+        const osc = this.context!.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, t + index * 0.1);
+
+        const gain = this.context!.createGain();
+        gain.gain.setValueAtTime(0, t + index * 0.1);
+        gain.gain.linearRampToValueAtTime(0.3, t + index * 0.1 + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + index * 0.1 + 0.4);
+
+        osc.connect(gain);
+        gain.connect(this.masterGain!);
+
+        osc.start(t + index * 0.1);
+        osc.stop(t + index * 0.1 + 0.5);
+    });
   }
 }
 
