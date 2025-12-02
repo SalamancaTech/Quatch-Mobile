@@ -60,7 +60,7 @@ class SoundManager {
     this.noiseBuffer = buffer;
   }
 
-  // Shuffle: Louder and crisper
+  // Shuffle: Bandpass Noise (7/10 - Preserved)
   public playShuffle() {
     this.initContext();
     if (this.isMuted || !this.context || !this.masterGain || !this.noiseBuffer) return;
@@ -76,7 +76,6 @@ class SoundManager {
 
     const gain = this.context.createGain();
     gain.gain.setValueAtTime(0, t);
-    // Increased peak gain from 0.3 to 0.8
     gain.gain.linearRampToValueAtTime(0.8, t + 0.05);
     gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
 
@@ -88,7 +87,7 @@ class SoundManager {
     noise.stop(t + 0.4);
   }
 
-  // Deal Start: More pronounced tap
+  // Deal Start: Triangle Osc (8/10 - Preserved)
   public playDeckTap() {
       this.initContext();
       if (this.isMuted || !this.context || !this.masterGain) return;
@@ -97,11 +96,10 @@ class SoundManager {
 
       const osc = this.context.createOscillator();
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(200, t); // Slightly higher pitch
+      osc.frequency.setValueAtTime(200, t);
       osc.frequency.exponentialRampToValueAtTime(50, t + 0.1);
 
       const gain = this.context.createGain();
-      // Increased gain from 0.5 to 0.8
       gain.gain.setValueAtTime(0.8, t);
       gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
 
@@ -112,7 +110,7 @@ class SoundManager {
       osc.stop(t + 0.2);
   }
 
-  // Card Deal: Sharper Thwip
+  // Card Deal: Lowpass Noise (8/10 - Preserved)
   public playDeal() {
     this.initContext();
     if (this.isMuted || !this.context || !this.masterGain || !this.noiseBuffer) return;
@@ -128,7 +126,6 @@ class SoundManager {
 
     const gain = this.context.createGain();
     gain.gain.setValueAtTime(0, t);
-    // Increased peak gain from 0.15 to 0.5
     gain.gain.linearRampToValueAtTime(0.5, t + 0.02);
     gain.gain.linearRampToValueAtTime(0, t + 0.15);
 
@@ -140,50 +137,7 @@ class SoundManager {
     noise.stop(t + 0.2);
   }
 
-  // Place Card: Harder Snap
-  public playPlace() {
-    this.initContext();
-    if (this.isMuted || !this.context || !this.masterGain || !this.noiseBuffer) return;
-
-    const t = this.context.currentTime;
-
-    // Snap (Noise)
-    const noise = this.context.createBufferSource();
-    noise.buffer = this.noiseBuffer;
-
-    const noiseFilter = this.context.createBiquadFilter();
-    noiseFilter.type = 'highpass';
-    noiseFilter.frequency.value = 2500;
-
-    const noiseGain = this.context.createGain();
-    // Increased gain from 0.3 to 0.7
-    noiseGain.gain.setValueAtTime(0.7, t);
-    noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
-
-    noise.connect(noiseFilter);
-    noiseFilter.connect(noiseGain);
-    noiseGain.connect(this.masterGain);
-    noise.start(t);
-    noise.stop(t + 0.1);
-
-    // Body (Sine)
-    const osc = this.context.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(800, t);
-    osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
-
-    const oscGain = this.context.createGain();
-    // Increased gain from 0.2 to 0.5
-    oscGain.gain.setValueAtTime(0.5, t);
-    oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
-
-    osc.connect(oscGain);
-    oscGain.connect(this.masterGain);
-    osc.start(t);
-    osc.stop(t + 0.15);
-  }
-
-  // Eat: Louder Slide
+  // Eat: Lowpass Slide (10/10 - Preserved)
   public playEat() {
       this.initContext();
       if (this.isMuted || !this.context || !this.masterGain || !this.noiseBuffer) return;
@@ -199,7 +153,6 @@ class SoundManager {
 
       const gain = this.context.createGain();
       gain.gain.setValueAtTime(0, t);
-      // Increased gain from 0.2 to 0.6
       gain.gain.linearRampToValueAtTime(0.6, t + 0.1);
       gain.gain.linearRampToValueAtTime(0, t + 0.4);
 
@@ -209,6 +162,160 @@ class SoundManager {
 
       noise.start(t);
       noise.stop(t + 0.5);
+  }
+
+  // Place Card: Hard Snap (Foley Style)
+  // Layer 1: High frequency snap (Highpass Noise)
+  // Layer 2: Table impact body (Low frequency bandpass)
+  public playPlace() {
+    this.initContext();
+    if (this.isMuted || !this.context || !this.masterGain || !this.noiseBuffer) return;
+
+    const t = this.context.currentTime;
+
+    // Layer 1: The Snap (High frequency crack)
+    const snapSource = this.context.createBufferSource();
+    snapSource.buffer = this.noiseBuffer;
+
+    const snapFilter = this.context.createBiquadFilter();
+    snapFilter.type = 'highpass';
+    snapFilter.frequency.setValueAtTime(3000, t);
+    snapFilter.frequency.exponentialRampToValueAtTime(1000, t + 0.05);
+
+    const snapGain = this.context.createGain();
+    snapGain.gain.setValueAtTime(0.8, t);
+    snapGain.gain.exponentialRampToValueAtTime(0.01, t + 0.04); // Very short
+
+    snapSource.connect(snapFilter);
+    snapFilter.connect(snapGain);
+    snapGain.connect(this.masterGain);
+    snapSource.start(t);
+    snapSource.stop(t + 0.1);
+
+    // Layer 2: The Body (Table Thud)
+    const bodySource = this.context.createBufferSource();
+    bodySource.buffer = this.noiseBuffer;
+
+    const bodyFilter = this.context.createBiquadFilter();
+    bodyFilter.type = 'lowpass';
+    bodyFilter.frequency.setValueAtTime(400, t);
+
+    const bodyGain = this.context.createGain();
+    bodyGain.gain.setValueAtTime(0.5, t);
+    bodyGain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+
+    bodySource.connect(bodyFilter);
+    bodyFilter.connect(bodyGain);
+    bodyGain.connect(this.masterGain);
+    bodySource.start(t);
+    bodySource.stop(t + 0.15);
+  }
+
+  // Notification (Clear/Reset): Card Flourish/Whoosh (Diegetic)
+  public playNotification() {
+    this.initContext();
+    if (this.isMuted || !this.context || !this.masterGain || !this.noiseBuffer) return;
+
+    const t = this.context.currentTime;
+
+    // Whoosh (Bandpass Sweep)
+    const source = this.context.createBufferSource();
+    source.buffer = this.noiseBuffer;
+
+    const filter = this.context.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.Q.value = 1;
+    filter.frequency.setValueAtTime(400, t);
+    filter.frequency.exponentialRampToValueAtTime(2000, t + 0.3);
+
+    const gain = this.context.createGain();
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.4, t + 0.1); // Swell
+    gain.gain.linearRampToValueAtTime(0, t + 0.4);
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+    source.start(t);
+    source.stop(t + 0.5);
+
+    // Subtle "Ding" (Coin/Chip sound) to accent
+    const osc = this.context.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(2000, t + 0.2);
+
+    const oscGain = this.context.createGain();
+    oscGain.gain.setValueAtTime(0, t + 0.2);
+    oscGain.gain.linearRampToValueAtTime(0.1, t + 0.21);
+    oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.6);
+
+    osc.connect(oscGain);
+    oscGain.connect(this.masterGain);
+    osc.start(t + 0.2);
+    osc.stop(t + 0.6);
+  }
+
+  // Error: Dull Thud (Diegetic - Card Reject)
+  public playError() {
+    this.initContext();
+    if (this.isMuted || !this.context || !this.masterGain || !this.noiseBuffer) return;
+
+    const t = this.context.currentTime;
+
+    const source = this.context.createBufferSource();
+    source.buffer = this.noiseBuffer;
+
+    // Heavy lowpass for "dead" sound
+    const filter = this.context.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(300, t);
+
+    const gain = this.context.createGain();
+    gain.gain.setValueAtTime(0.6, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1); // Short thud
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.masterGain);
+
+    source.start(t);
+    source.stop(t + 0.2);
+  }
+
+  // Victory: Card Cascade (Diegetic - Card Waterfall)
+  public playVictory() {
+    this.initContext();
+    if (this.isMuted || !this.context || !this.masterGain || !this.noiseBuffer) return;
+
+    const t = this.context.currentTime;
+
+    // Trigger multiple "deal-like" sounds rapidly
+    const count = 15;
+    for (let i = 0; i < count; i++) {
+        const offset = i * 0.08;
+
+        const source = this.context.createBufferSource();
+        source.buffer = this.noiseBuffer;
+
+        const filter = this.context.createBiquadFilter();
+        filter.type = 'lowpass';
+        // Vary frequency slightly for texture
+        const startFreq = 800 + Math.random() * 400;
+        filter.frequency.setValueAtTime(startFreq, t + offset);
+        filter.frequency.linearRampToValueAtTime(startFreq + 1000, t + offset + 0.1);
+
+        const gain = this.context.createGain();
+        gain.gain.setValueAtTime(0, t + offset);
+        gain.gain.linearRampToValueAtTime(0.15, t + offset + 0.02);
+        gain.gain.linearRampToValueAtTime(0, t + offset + 0.15);
+
+        source.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.masterGain);
+
+        source.start(t + offset);
+        source.stop(t + offset + 0.2);
+    }
   }
 
   // Notification: Pleasant Chime
