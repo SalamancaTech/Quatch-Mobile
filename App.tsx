@@ -137,11 +137,33 @@ const App: React.FC = () => {
   const opponentLastStandRef = useRef<HTMLDivElement>(null);
 
   // --- Sound System ---
-  const playSound = useCallback((type: 'card-place' | 'shuffle' | 'eat' | 'deal' | 'notification' | 'error' | 'victory') => {
-    // In a production app, you would play actual audio files here.
-    // Example: new Audio(`/sounds/${type}.mp3`).play().catch(() => {});
-    // For now, we will just log the event to confirm the trigger works.
-    console.log(`🔊 Sound Triggered: ${type}`);
+  const playSound = useCallback((type: 'card-place' | 'shuffle' | 'eat' | 'deal' | 'deck-tap' | 'notification' | 'error' | 'victory') => {
+    switch (type) {
+      case 'card-place':
+        soundManager.playPlace();
+        break;
+      case 'shuffle':
+        soundManager.playShuffle();
+        break;
+      case 'eat':
+        soundManager.playEat();
+        break;
+      case 'deal':
+        soundManager.playDeal();
+        break;
+      case 'deck-tap':
+        soundManager.playDeckTap();
+        break;
+      case 'notification':
+        soundManager.playNotification();
+        break;
+      case 'error':
+        soundManager.playError();
+        break;
+      case 'victory':
+        soundManager.playVictory();
+        break;
+    }
   }, []);
   // --------------------
 
@@ -653,7 +675,7 @@ const App: React.FC = () => {
   };
 
   const initiatePlayAnimation = (cards: CardType[], player: Player, overrideStartRect?: DOMRect) => {
-    soundManager.playPlace();
+    playSound('card-place');
     if (!mpaRef.current || cards.length === 0) {
         handlePlayComplete(cards, player);
         return;
@@ -846,7 +868,7 @@ const App: React.FC = () => {
     }));
     
     initiateEatAnimation(items, 'player');
-    soundManager.playEat();
+    playSound('eat');
     setGameState(prev => ({ ...prev!, mpa: [] }));
   };
 
@@ -1018,13 +1040,13 @@ const App: React.FC = () => {
 
       // 1. Split & Riffle phases
       setShuffleAnimationState(generateItems('split'));
-      soundManager.playShuffle();
+      playSound('shuffle');
       await new Promise(r => setTimeout(r, 450));
 
       await new Promise(r => setTimeout(r, 50));
 
       setShuffleAnimationState(generateItems('riffle'));
-      soundManager.playShuffle();
+      playSound('shuffle');
       await new Promise(r => setTimeout(r, 550));
 
       // 3. Return to Deck
@@ -1050,7 +1072,7 @@ const App: React.FC = () => {
         return;
     }
 
-    soundManager.playDeckTap();
+    playSound('deck-tap');
 
     const playerLSRect = playerLastStandRef.current?.getBoundingClientRect();
     const playerLCRect = playerLastChanceRef.current?.getBoundingClientRect();
@@ -1080,7 +1102,7 @@ const App: React.FC = () => {
             const rect = getPreciseSlotRect(`${player.isAI ? `opponent-${player.id}` : 'player'}-ls-slot-${i}`);
             if (rect) {
                 animations.push({ card: lsCardsToDeal[j][i], startRect, endRect: rect, delay, isFaceUp: false, id: `deal-ls-${lsCardsToDeal[j][i].id}` });
-                setTimeout(() => soundManager.playDeal(), delay);
+                setTimeout(() => playSound('deal'), delay);
             }
             delay += delayIncrement;
         }
@@ -1096,7 +1118,7 @@ const App: React.FC = () => {
             const rect = getPreciseSlotRect(`${player.isAI ? `opponent-${player.id}` : 'player'}-lc-slot-${i}`);
             if (rect) {
                 animations.push({ card: lcCardsToDeal[j][i], startRect, endRect: rect, delay, isFaceUp: true, id: `deal-lc-${lcCardsToDeal[j][i].id}` });
-                setTimeout(() => soundManager.playDeal(), delay);
+                setTimeout(() => playSound('deal'), delay);
             }
             delay += delayIncrement;
         }
@@ -1112,7 +1134,7 @@ const App: React.FC = () => {
             const rect = player.isAI ? document.getElementById(`opponent-${player.id}-hand-container`)?.getBoundingClientRect() : getHandCardFanRect(playerHandRect, i, 3, cardWidth, cardHeight);
             if (rect) {
               animations.push({ card: handCardsToDeal[j][i], startRect, endRect: rect, delay, isFaceUp: !player.isAI, id: `deal-hand-${handCardsToDeal[j][i].id}` });
-              setTimeout(() => soundManager.playDeal(), delay);
+              setTimeout(() => playSound('deal'), delay);
             }
             delay += delayIncrement;
         }
@@ -1248,7 +1270,7 @@ const App: React.FC = () => {
                 id: `eat-${card.id}`
             }));
             initiateEatAnimation(items, 'opponent');
-            soundManager.playEat();
+            playSound('eat');
             setGameState(prev => ({ ...prev!, mpa: [] }));
         }
       }, 1000);
