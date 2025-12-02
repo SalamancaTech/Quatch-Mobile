@@ -317,6 +317,79 @@ class SoundManager {
         source.stop(t + offset + 0.2);
     }
   }
+
+  // Notification: Pleasant Chime
+  public playNotification() {
+    this.initContext();
+    if (this.isMuted || !this.context || !this.masterGain) return;
+
+    const t = this.context.currentTime;
+
+    const osc = this.context.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(523.25, t); // C5
+    osc.frequency.exponentialRampToValueAtTime(1046.50, t + 0.1); // C6
+
+    const gain = this.context.createGain();
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.4, t + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(t);
+    osc.stop(t + 0.5);
+  }
+
+  // Error: Low Buzz/Thud
+  public playError() {
+    this.initContext();
+    if (this.isMuted || !this.context || !this.masterGain) return;
+
+    const t = this.context.currentTime;
+
+    const osc = this.context.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.linearRampToValueAtTime(100, t + 0.15);
+
+    const gain = this.context.createGain();
+    gain.gain.setValueAtTime(0.3, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(t);
+    osc.stop(t + 0.2);
+  }
+
+  // Victory: Arpeggio
+  public playVictory() {
+    this.initContext();
+    if (this.isMuted || !this.context || !this.masterGain) return;
+
+    const t = this.context.currentTime;
+    const notes = [523.25, 659.25, 783.99, 1046.50]; // C Major arpeggio
+
+    notes.forEach((freq, index) => {
+        const osc = this.context!.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, t + index * 0.1);
+
+        const gain = this.context!.createGain();
+        gain.gain.setValueAtTime(0, t + index * 0.1);
+        gain.gain.linearRampToValueAtTime(0.3, t + index * 0.1 + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + index * 0.1 + 0.4);
+
+        osc.connect(gain);
+        gain.connect(this.masterGain!);
+
+        osc.start(t + index * 0.1);
+        osc.stop(t + index * 0.1 + 0.5);
+    });
+  }
 }
 
 export const soundManager = new SoundManager();
