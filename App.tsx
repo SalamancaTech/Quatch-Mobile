@@ -251,6 +251,34 @@ const App: React.FC = () => {
 
     // --- 4. Swap Phase Logic ---
     if (gameState.stage === GameStage.SWAP) {
+        // LC -> LC Swap Logic
+        if (activeData.type === 'lc-card' && overData.type === 'lc-slot') {
+            const oldIndex = activeData.index;
+            const newIndex = overData.index;
+
+            if (oldIndex !== newIndex) {
+                setGameState(prev => {
+                    if (!prev) return null;
+                    const newPlayers = prev.players.map(p => {
+                        if (p.id === player.id) {
+                            const newLC = [...p.lastChance];
+                            const cardA = newLC[oldIndex];
+                            const cardB = newLC[newIndex];
+
+                            newLC[oldIndex] = cardB;
+                            newLC[newIndex] = cardA;
+
+                            return { ...p, lastChance: newLC };
+                        }
+                        return p;
+                    });
+                    return { ...prev, players: newPlayers };
+                });
+                playSound('card-place');
+            }
+            return;
+        }
+
         if (activeData.type === 'hand-card' && overData.type === 'lc-slot') {
             const handIndex = activeData.index;
             const lcIndex = overData.index;
